@@ -6,6 +6,7 @@ import {
   faHouse,
   faUser,
   faWineBottle,
+  faQuestion
 } from '@fortawesome/free-solid-svg-icons'
 import './App.scss'
 
@@ -23,7 +24,7 @@ const tabs = [
   { to: '/home', label: 'Home', icon: faHouse },
   { to: '/cellar', label: 'Bottles', icon: faWineBottle },
   { to: '/events', label: 'Events', icon: faCalendarDays },
-  { to: '/profile', label: 'Profile', icon: faUser },
+  { to: '/tbd', label: 'TBD', icon: faQuestion },
 ]
 
 function App() {
@@ -99,7 +100,7 @@ function App() {
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<HomeScreen user={user} />} />
           <Route path="/cellar" element={<CellarScreen />} />
-          <Route path="/events" element={<EventsScreen />} />
+          <Route path="/events" element={<EventsScreen user={user} />} />
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />
         </Routes>
       </main>

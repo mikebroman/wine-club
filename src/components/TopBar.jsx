@@ -14,8 +14,8 @@ export default function TopBar({ user }) {
           decoding="async"
         />
         <div className="topbar-text">
-          <span className="topbar-title">Wine Club</span>
-          <span className="topbar-subtitle">{user.name}</span>
+          <span className="topbar-title">{user.name}</span>
+          <span className="topbar-subtitle">Club Member</span>
         </div>
       </div>
 

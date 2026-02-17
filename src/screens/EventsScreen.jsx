@@ -1,69 +1,174 @@
-export default function EventsScreen() {
+import { useState } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faHouse } from '@fortawesome/free-solid-svg-icons'
+import UpcomingResponsibilities from '../components/UpcomingResponsibilities'
+
+const nextTasting = {
+  title: 'Next Event',
+  dateLine: 'Thu, Mar 7 · 7:00 PM',
+  location: '117 Boardhouse Br',
+  assignments: {
+    host: 'Mike & Kaitlin',
+    apps: 'Ryan & Kayla',
+    dessert: 'Lee & Morganne',
+  },
+}
+
+const upcomingEvents = [
+  {
+    id: '2026-03-07',
+    dateShort: 'Mar 7',
+    dateLong: 'Thu, Mar 7 · 7:00 PM',
+    location: 'Downtown Cellar Room',
+    host: 'Mike & Kaitlin',
+  },
+  {
+    id: '2026-04-04',
+    dateShort: 'Apr 4',
+    dateLong: 'Sat, Apr 4 · 7:00 PM',
+    location: 'Lee Home',
+    host: 'Lee Family',
+  },
+  {
+    id: '2026-05-09',
+    dateShort: 'May 9',
+    dateLong: 'Sat, May 9 · 7:00 PM',
+    location: 'Patel Home',
+    host: 'Patel',
+  },
+]
+
+const pastEvents = [
+  {
+    id: '2026-02-03',
+    dateShort: 'Feb 3',
+    location: 'Patel Home',
+    bottlesCount: 6,
+    photosCount: 12,
+    topRated: '2018 Rioja Reserva',
+  },
+  {
+    id: '2026-01-12',
+    dateShort: 'Jan 12',
+    location: 'Gomez Home',
+    bottlesCount: 5,
+    photosCount: 8,
+    topRated: 'Chenin Blanc (Loire)',
+  },
+  {
+    id: '2025-12-07',
+    dateShort: 'Dec 7',
+    location: 'Johnsons Home',
+    bottlesCount: 7,
+    photosCount: 15,
+    topRated: 'Barolo (Nebbiolo)',
+  },
+]
+
+const responsibilityGatherings = [
+  { id: '1', date: 'Mar 7', host: 'Johnsons', apps: 'Lee', dessert: 'Patel' },
+  { id: '2', date: 'Apr 11', host: 'Lee', apps: 'Patel', dessert: 'You' },
+  { id: '3', date: 'May 16', host: 'Patel', apps: 'You', dessert: 'Gomez' },
+]
+
+export default function EventsScreen({ user }) {
+  const [listView, setListView] = useState('upcoming')
+
   return (
     <>
-      <section className="panel" aria-label="Next event">
-        <h2>Events (The Spine)</h2>
-        <p>Purpose: coordination + rotation truth</p>
-        <ul className="wine-list">
-          <li>
-            <span>Date</span>
-            <span>Thursday, March 7 · 7:00 PM</span>
-          </li>
-          <li>
-            <span>Host</span>
-            <span>Jamie & Priya</span>
-          </li>
-          <li>
-            <span>Location</span>
-            <span>Downtown Cellar Room</span>
-          </li>
-        </ul>
+      <section className="panel events-hero" aria-label="Next tasting">
+        <div className="events-hero-head">
+          <h2 className="events-hero-title">{nextTasting.title}</h2>
+          <div className="events-hero-divider" aria-hidden="true" />
+        </div>
+
+        <p className="events-next-date">{nextTasting.dateLine}</p>
+        <p className="events-next-location">{nextTasting.location}</p>
+
+        <div className="events-assignments" aria-label="Assignments">
+          <div className="events-assignment">
+            <span className="events-assignment-label">
+              <FontAwesomeIcon icon={faHouse} className="events-assignment-icon" />
+              Host
+            </span>
+            <span className="events-assignment-value">{nextTasting.assignments.host}</span>
+          </div>
+          <div className="events-assignment">
+            <span className="events-assignment-label">Apps</span>
+            <span className="events-assignment-value">{nextTasting.assignments.apps}</span>
+          </div>
+          <div className="events-assignment">
+            <span className="events-assignment-label">Dessert</span>
+            <span className="events-assignment-value">{nextTasting.assignments.dessert}</span>
+          </div>
+        </div>
+
+        <div className="event-actions" aria-label="Event actions">
+          <button type="button" className="event-action">
+            RSVP
+          </button>
+          <button type="button" className="event-action">
+            Directions
+          </button>
+          <button type="button" className="event-action">
+            Details
+          </button>
+        </div>
       </section>
 
-      <section className="panel" aria-label="RSVP and assignments">
-        <h2>RSVP + Assignments</h2>
-        <ul className="wine-list">
-          <li>
-            <span>Host</span>
-            <span>Jamie & Priya</span>
-          </li>
-          <li>
-            <span>Apps</span>
-            <span>Mike & Sarah · Next Up</span>
-          </li>
-          <li>
-            <span>Dessert</span>
-            <span>Alex & Drew</span>
-          </li>
-          <li>
-            <span>Wine</span>
-            <span>Jordan & Casey · Next Up</span>
-          </li>
-        </ul>
-        <p>Rotation is per household.</p>
-      </section>
+      <UpcomingResponsibilities
+        gatherings={responsibilityGatherings}
+        currentHousehold="You"
+      />
 
-      <section className="panel" aria-label="Rotation order">
-        <h2>Rotation Order</h2>
-        <ul className="wine-list">
-          <li>
-            <span>Host</span>
-            <span>Jamie & Priya → Mike & Sarah</span>
-          </li>
-          <li>
-            <span>Apps</span>
-            <span>Mike & Sarah → Alex & Drew</span>
-          </li>
-          <li>
-            <span>Dessert</span>
-            <span>Alex & Drew → Jordan & Casey</span>
-          </li>
-          <li>
-            <span>Wine</span>
-            <span>Jordan & Casey → Jamie & Priya</span>
-          </li>
-        </ul>
-        <p>Skip or swap if needed. Attendance-aware rotation later.</p>
+      <section className="events-list" aria-label="Events list">
+        <div className="events-list-tabs" role="tablist" aria-label="Upcoming or past">
+          <button
+            type="button"
+            className={`events-list-tab${listView === 'upcoming' ? ' is-active' : ''}`}
+            onClick={() => setListView('upcoming')}
+            role="tab"
+            aria-selected={listView === 'upcoming'}
+          >
+            Upcoming
+          </button>
+          <button
+            type="button"
+            className={`events-list-tab${listView === 'past' ? ' is-active' : ''}`}
+            onClick={() => setListView('past')}
+            role="tab"
+            aria-selected={listView === 'past'}
+          >
+            Past
+          </button>
+        </div>
+
+        <div className="events-cards" aria-label="Event cards">
+          {listView === 'upcoming'
+            ? upcomingEvents.slice(0, 3).map((event) => (
+                <article key={event.id} className="panel events-compact" aria-label="Upcoming event">
+                  <div className="events-compact-head">
+                    <span className="events-compact-date">{event.dateShort}</span>
+                    <span className="events-compact-meta">{event.location}</span>
+                  </div>
+                  <p className="events-compact-sub">{event.dateLong}</p>
+                  <p className="events-compact-sub">Host: {event.host}</p>
+                </article>
+              ))
+            : pastEvents.map((event) => (
+                <article key={event.id} className="panel events-compact" aria-label="Past event">
+                  <div className="events-compact-head">
+                    <span className="events-compact-date">{event.dateShort}</span>
+                    <span className="events-compact-meta">{event.location}</span>
+                  </div>
+                  <p className="events-compact-stats">
+                    <span aria-hidden="true">🍇</span> {event.bottlesCount} bottles ·{' '}
+                    <span aria-hidden="true">📷</span> {event.photosCount} photos
+                  </p>
+                  <p className="events-compact-sub">Top rated: {event.topRated}</p>
+                </article>
+              ))}
+        </div>
       </section>
     </>
   )
