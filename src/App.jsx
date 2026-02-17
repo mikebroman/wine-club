@@ -15,6 +15,7 @@ import LoginScreen from './components/LoginScreen'
 import TopBar from './components/TopBar'
 import CellarScreen from './screens/CellarScreen'
 import EventsScreen from './screens/EventsScreen'
+import EventDetailsScreen from './screens/EventDetailsScreen'
 import HomeScreen from './screens/HomeScreen'
 import ProfileScreen from './screens/ProfileScreen'
 
@@ -139,6 +140,7 @@ function App() {
           <Route path="/home" element={<HomeScreen user={user} />} />
           <Route path="/cellar" element={<CellarScreen />} />
           <Route path="/events" element={<EventsScreen user={user} />} />
+          <Route path="/events/:eventId" element={<EventDetailsScreen />} />
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />
         </Routes>
       </main>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faHouse } from '@fortawesome/free-solid-svg-icons'
+import { Link } from 'react-router-dom'
 import UpcomingResponsibilities from '../components/UpcomingResponsibilities'
 
 const nextTasting = {
@@ -110,9 +111,9 @@ export default function EventsScreen({ user }) {
           <button type="button" className="event-action">
             Directions
           </button>
-          <button type="button" className="event-action">
+          <Link className="event-action event-action-link" to="/events/2026-03-07">
             Details
-          </button>
+          </Link>
         </div>
       </section>
 

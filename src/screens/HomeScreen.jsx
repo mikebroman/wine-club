@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEnvelope } from '@fortawesome/free-solid-svg-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 const REMINDER_ID = 'home-reminder-v1'
 const REMINDER_REACTIONS_KEY = 'wineClubReminderReactionsDraft'
@@ -249,9 +250,9 @@ export default function HomeScreen({ user }) {
           <button type="button" className="event-action">
             Directions
           </button>
-          <button type="button" className="event-action">
+          <Link className="event-action event-action-link" to="/events/2026-03-07">
             Details
-          </button>
+          </Link>
         </div>
       </section>
     </>
