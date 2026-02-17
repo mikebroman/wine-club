@@ -4,9 +4,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCalendarDays,
   faHouse,
-  faUser,
   faWineBottle,
-  faQuestion
+  faQuestion,
 } from '@fortawesome/free-solid-svg-icons'
 import './App.scss'
 
@@ -20,6 +19,7 @@ import HomeScreen from './screens/HomeScreen'
 import ProfileScreen from './screens/ProfileScreen'
 
 const SESSION_USER_KEY = 'wineClubUser'
+const RSVP_STATE_KEY = 'wineClubRsvpByEvent'
 
 const tabs = [
   { to: '/home', label: 'Home', icon: faHouse },
@@ -32,6 +32,21 @@ function App() {
   const [clickPulseByTab, setClickPulseByTab] = useState({})
   const [loadingPhase, setLoadingPhase] = useState('enter')
   const [logoutPhase, setLogoutPhase] = useState('idle')
+  const [rsvpByEvent, setRsvpByEvent] = useState(() => {
+    const rawRsvp = sessionStorage.getItem(RSVP_STATE_KEY)
+
+    if (!rawRsvp) {
+      return {}
+    }
+
+    try {
+      const parsed = JSON.parse(rawRsvp)
+      return typeof parsed === 'object' && parsed !== null ? parsed : {}
+    } catch {
+      sessionStorage.removeItem(RSVP_STATE_KEY)
+      return {}
+    }
+  })
   const [user, setUser] = useState(() => {
     const rawUser = sessionStorage.getItem(SESSION_USER_KEY)
     if (!rawUser) {
@@ -100,8 +115,10 @@ function App() {
     if (logoutPhase === 'loading') {
       const finishTimer = setTimeout(() => {
         sessionStorage.removeItem(SESSION_USER_KEY)
+        sessionStorage.removeItem(RSVP_STATE_KEY)
         setUser(null)
         setClickPulseByTab({})
+        setRsvpByEvent({})
         setLogoutPhase('idle')
       }, 3000)
 
@@ -116,6 +133,19 @@ function App() {
       ...previous,
       [tabTo]: (previous[tabTo] ?? 0) + 1,
     }))
+  }
+
+  const handleSetRsvpStatus = (eventId, status) => {
+    setRsvpByEvent((previous) => {
+      const nextStatus = status ?? 'none'
+      const nextState = {
+        ...previous,
+        [eventId]: nextStatus,
+      }
+
+      sessionStorage.setItem(RSVP_STATE_KEY, JSON.stringify(nextState))
+      return nextState
+    })
   }
 
   if (loadingPhase !== 'done') {
@@ -137,10 +167,30 @@ function App() {
       <main className="app-shell">
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/home" element={<HomeScreen user={user} />} />
+          <Route
+            path="/home"
+            element={
+              <HomeScreen
+                user={user}
+                nextEventRsvpStatus={rsvpByEvent['2026-03-07'] ?? 'none'}
+                onNextEventRsvpSet={(status) => handleSetRsvpStatus('2026-03-07', status)}
+              />
+            }
+          />
           <Route path="/cellar" element={<CellarScreen />} />
-          <Route path="/events" element={<EventsScreen user={user} />} />
-          <Route path="/events/:eventId" element={<EventDetailsScreen />} />
+          <Route
+            path="/events"
+            element={
+              <EventsScreen
+                nextEventRsvpStatus={rsvpByEvent['2026-03-07'] ?? 'none'}
+                onNextEventRsvpSet={(status) => handleSetRsvpStatus('2026-03-07', status)}
+              />
+            }
+          />
+          <Route
+            path="/events/:eventId"
+            element={<EventDetailsScreen rsvpByEvent={rsvpByEvent} onRsvpSet={handleSetRsvpStatus} />}
+          />
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />
         </Routes>
       </main>

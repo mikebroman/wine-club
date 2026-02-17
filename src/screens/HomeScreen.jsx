@@ -74,16 +74,25 @@ function buildCounts({ myEmojis, otherByUserId }) {
   return reactions
 }
 
-export default function HomeScreen({ user }) {
+export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextEventRsvpSet }) {
   const userId = useMemo(() => user?.id ?? 'anonymous', [user?.id])
   const [myEmojis, setMyEmojis] = useState([])
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [pickerValue, setPickerValue] = useState('')
+  const [showRsvpOptions, setShowRsvpOptions] = useState(false)
   const pickerInputRef = useRef(null)
+  const rsvpLabelByStatus = {
+    none: 'RSVP',
+    accepted: 'Going',
+    tentative: 'Maybe',
+    declined: 'Declined',
+  }
+  const rsvpButtonLabel = rsvpLabelByStatus[nextEventRsvpStatus] ?? 'RSVP'
 
   useEffect(() => {
     const payload = readAllReactions()
     const stored = payload?.[REMINDER_ID]?.[userId] ?? []
+    
     setMyEmojis(Array.isArray(stored) ? uniqueEmojis(stored) : [])
   }, [userId])
 
@@ -244,13 +253,53 @@ export default function HomeScreen({ user }) {
           </div>
         </div>
         <div className="event-actions" aria-label="Event actions">
-          <button type="button" className="event-action">
-            RSVP
-          </button>
-          <button type="button" className="event-action">
-            Directions
-          </button>
-          <Link className="event-action event-action-link" to="/events/2026-03-07">
+          <div className={`event-rsvp-pop event-action-half${showRsvpOptions ? ' is-open' : ''}`}>
+            <button
+              type="button"
+              className="event-action"
+              onClick={() => setShowRsvpOptions((previous) => !previous)}
+              aria-expanded={showRsvpOptions}
+              aria-label={`RSVP status: ${rsvpButtonLabel}`}
+            >
+              {rsvpButtonLabel}
+            </button>
+            <div className="event-rsvp-pop-menu" role="group" aria-label="Choose RSVP response">
+              <button
+                type="button"
+                className="event-action"
+                onClick={() => {
+                  onNextEventRsvpSet?.('accepted')
+                  setShowRsvpOptions(false)
+                }}
+                aria-pressed={nextEventRsvpStatus === 'accepted'}
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                className="event-action"
+                onClick={() => {
+                  onNextEventRsvpSet?.('tentative')
+                  setShowRsvpOptions(false)
+                }}
+                aria-pressed={nextEventRsvpStatus === 'tentative'}
+              >
+                Tentative
+              </button>
+              <button
+                type="button"
+                className="event-action"
+                onClick={() => {
+                  onNextEventRsvpSet?.('declined')
+                  setShowRsvpOptions(false)
+                }}
+                aria-pressed={nextEventRsvpStatus === 'declined'}
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+          <Link className="event-action event-action-link event-action-half" to="/events/2026-03-07">
             Details
           </Link>
         </div>

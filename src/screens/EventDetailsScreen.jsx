@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 const eventDetailsById = {
@@ -19,9 +20,18 @@ const eventDetailsById = {
   },
 }
 
-export default function EventDetailsScreen() {
+export default function EventDetailsScreen({ rsvpByEvent = {}, onRsvpSet }) {
   const { eventId } = useParams()
   const event = eventDetailsById[eventId] ?? eventDetailsById['2026-03-07']
+  const currentRsvpStatus = rsvpByEvent[event.id] ?? 'none'
+  const [showRsvpOptions, setShowRsvpOptions] = useState(false)
+  const rsvpLabelByStatus = {
+    none: 'RSVP',
+    accepted: 'Going',
+    tentative: 'Maybe',
+    declined: 'Declined',
+  }
+  const rsvpButtonLabel = rsvpLabelByStatus[currentRsvpStatus] ?? 'RSVP'
   const directionsQuery = event.address ?? event.location
   const directionsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(directionsQuery)}`
 
@@ -60,11 +70,54 @@ export default function EventDetailsScreen() {
       </div>
 
       <div className="event-details-actions" aria-label="Event detail actions">
-        <button type="button" className="event-action">
-          RSVP
-        </button>
+        <div className={`event-rsvp-pop event-action-half${showRsvpOptions ? ' is-open' : ''}`}>
+          <button
+            type="button"
+            className="event-action"
+            onClick={() => setShowRsvpOptions((previous) => !previous)}
+            aria-expanded={showRsvpOptions}
+            aria-label={`RSVP status: ${rsvpButtonLabel}`}
+          >
+            {rsvpButtonLabel}
+          </button>
+          <div className="event-rsvp-pop-menu" role="group" aria-label="Choose RSVP response">
+            <button
+              type="button"
+              className="event-action"
+              onClick={() => {
+                onRsvpSet?.(event.id, 'accepted')
+                setShowRsvpOptions(false)
+              }}
+              aria-pressed={currentRsvpStatus === 'accepted'}
+            >
+              Accept
+            </button>
+            <button
+              type="button"
+              className="event-action"
+              onClick={() => {
+                onRsvpSet?.(event.id, 'tentative')
+                setShowRsvpOptions(false)
+              }}
+              aria-pressed={currentRsvpStatus === 'tentative'}
+            >
+              Tentative
+            </button>
+            <button
+              type="button"
+              className="event-action"
+              onClick={() => {
+                onRsvpSet?.(event.id, 'declined')
+                setShowRsvpOptions(false)
+              }}
+              aria-pressed={currentRsvpStatus === 'declined'}
+            >
+              Decline
+            </button>
+          </div>
+        </div>
         <a
-          className="event-action event-action-link"
+          className="event-action event-action-link event-action-half"
           href={directionsUrl}
           target="_blank"
           rel="noreferrer"

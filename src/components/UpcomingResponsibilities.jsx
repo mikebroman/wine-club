@@ -2,12 +2,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCakeCandles,
   faHouse,
-  faUtensils,
+  faShrimp,
 } from '@fortawesome/free-solid-svg-icons'
 
 const roleConfig = [
   { key: 'host', label: 'Host', icon: faHouse },
-  { key: 'apps', label: 'Apps', icon: faUtensils },
+  { key: 'apps', label: 'Apps', icon: faShrimp },
   { key: 'dessert', label: 'Dessert', icon: faCakeCandles },
 ]
 
