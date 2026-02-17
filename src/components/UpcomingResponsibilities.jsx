@@ -14,26 +14,25 @@ const roleConfig = [
 export default function UpcomingResponsibilities({ gatherings, currentHousehold }) {
   return (
     <section className="panel upcoming-resp" aria-label="Upcoming responsibilities">
-      <h2 className="upcoming-resp-title">Who’s Up Next</h2>
+      <h2 className="upcoming-resp-title">Upcoming</h2>
 
-      <div className="upcoming-resp-scroll" aria-label="Upcoming gatherings">
+      <div className="upcoming-resp-scroll" aria-label="Upcoming gatherings timeline">
         {gatherings.map((gathering) => {
+          const [month = '', day = ''] = gathering.date.split(' ')
           const isInAnyRole =
             gathering.host === currentHousehold ||
             gathering.apps === currentHousehold ||
             gathering.dessert === currentHousehold
 
           return (
-            <button
+            <article
               key={gathering.id}
-              type="button"
               className={`upcoming-resp-item${isInAnyRole ? ' is-mine' : ''}`}
-              onClick={() => console.log(gathering.id)}
-              aria-label={`Open gathering ${gathering.date}`}
+              aria-label={`Responsibilities for ${gathering.date}`}
             >
-              <div className="upcoming-resp-date">
-                <span className="upcoming-resp-date-text">{gathering.date}</span>
-                {isInAnyRole ? <span className="upcoming-resp-you">You</span> : null}
+              <div className="upcoming-resp-marker" aria-label={gathering.date}>
+                <span className="upcoming-resp-month">{month}</span>
+                <span className="upcoming-resp-day">{day}</span>
               </div>
 
               <div className="upcoming-resp-roles" aria-label="Roles">
@@ -50,11 +49,12 @@ export default function UpcomingResponsibilities({ gatherings, currentHousehold 
                         <FontAwesomeIcon icon={role.icon} />
                       </span>
                       <span className="upcoming-resp-name">{household}</span>
+                      <span className="upcoming-resp-label">{role.label}</span>
                     </div>
                   )
                 })}
               </div>
-            </button>
+            </article>
           )
         })}
       </div>

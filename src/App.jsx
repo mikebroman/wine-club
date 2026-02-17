@@ -13,6 +13,7 @@ import LoadingScreen from './components/LoadingScreen'
 import LoginScreen from './components/LoginScreen'
 import TopBar from './components/TopBar'
 import CellarScreen from './screens/CellarScreen'
+import BottleDetailsScreen from './screens/BottleDetailsScreen'
 import EventsScreen from './screens/EventsScreen'
 import EventDetailsScreen from './screens/EventDetailsScreen'
 import HomeScreen from './screens/HomeScreen'
@@ -29,7 +30,6 @@ const tabs = [
 ]
 
 function App() {
-  const [clickPulseByTab, setClickPulseByTab] = useState({})
   const [loadingPhase, setLoadingPhase] = useState('enter')
   const [logoutPhase, setLogoutPhase] = useState('idle')
   const [rsvpByEvent, setRsvpByEvent] = useState(() => {
@@ -117,7 +117,6 @@ function App() {
         sessionStorage.removeItem(SESSION_USER_KEY)
         sessionStorage.removeItem(RSVP_STATE_KEY)
         setUser(null)
-        setClickPulseByTab({})
         setRsvpByEvent({})
         setLogoutPhase('idle')
       }, 3000)
@@ -127,13 +126,6 @@ function App() {
       }
     }
   }, [logoutPhase])
-
-  const handleTabClick = (tabTo) => {
-    setClickPulseByTab((previous) => ({
-      ...previous,
-      [tabTo]: (previous[tabTo] ?? 0) + 1,
-    }))
-  }
 
   const handleSetRsvpStatus = (eventId, status) => {
     setRsvpByEvent((previous) => {
@@ -178,6 +170,7 @@ function App() {
             }
           />
           <Route path="/cellar" element={<CellarScreen />} />
+          <Route path="/cellar/:bottleId" element={<BottleDetailsScreen />} />
           <Route
             path="/events"
             element={
@@ -200,12 +193,7 @@ function App() {
           <NavLink
             key={tab.to}
             to={tab.to}
-            className={({ isActive }) => {
-              const pulse = clickPulseByTab[tab.to] ?? 0
-              const sloshClass = pulse > 0 ? ` slosh-${pulse % 2}` : ''
-              return `tab-link${isActive ? ' active' : ''}${sloshClass}`
-            }}
-            onClick={() => handleTabClick(tab.to)}
+            className={({ isActive }) => `tab-link${isActive ? ' active' : ''}`}
           >
             <span className="tab-liquid" aria-hidden="true" />
             <FontAwesomeIcon icon={tab.icon} className="tab-icon" />

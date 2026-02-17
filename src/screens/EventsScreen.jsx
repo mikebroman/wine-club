@@ -165,7 +165,7 @@ export default function EventsScreen({ nextEventRsvpStatus = 'none', onNextEvent
         currentHousehold="You"
       />
 
-      <section className="events-list" aria-label="Events list">
+      {/* <section className="events-list" aria-label="Events list">
         <div className="events-list-tabs" role="tablist" aria-label="Upcoming or past">
           <button
             type="button"
@@ -213,7 +213,7 @@ export default function EventsScreen({ nextEventRsvpStatus = 'none', onNextEvent
                 </article>
               ))}
         </div>
-      </section>
+      </section> */}
     </>
   )
 }
