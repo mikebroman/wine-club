@@ -51,6 +51,20 @@
     $wine-primary;
 }
 
+.app-topbar,
+.app-shell,
+.bottom-nav {
+  transition: opacity 280ms ease, transform 280ms ease;
+  will-change: opacity, transform;
+}
+
+.app-container.is-logging-out .app-topbar,
+.app-container.is-logging-out .app-shell,
+.app-container.is-logging-out .bottom-nav {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
 .app-container::before {
   content: '';
   position: absolute;

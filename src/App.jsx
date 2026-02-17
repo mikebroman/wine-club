@@ -30,6 +30,7 @@ const tabs = [
 function App() {
   const [clickPulseByTab, setClickPulseByTab] = useState({})
   const [loadingPhase, setLoadingPhase] = useState('enter')
+  const [logoutPhase, setLogoutPhase] = useState('idle')
   const [user, setUser] = useState(() => {
     const rawUser = sessionStorage.getItem(SESSION_USER_KEY)
     if (!rawUser) {
@@ -71,10 +72,43 @@ function App() {
   }
 
   const handleLogout = () => {
-    sessionStorage.removeItem(SESSION_USER_KEY)
-    setUser(null)
-    setClickPulseByTab({})
+    setLogoutPhase((previous) => {
+      if (previous !== 'idle') {
+        return previous
+      }
+
+      return 'fading'
+    })
   }
+
+  useEffect(() => {
+    if (logoutPhase === 'idle') {
+      return
+    }
+
+    if (logoutPhase === 'fading') {
+      const showLoadingTimer = setTimeout(() => {
+        setLogoutPhase('loading')
+      }, 300)
+
+      return () => {
+        clearTimeout(showLoadingTimer)
+      }
+    }
+
+    if (logoutPhase === 'loading') {
+      const finishTimer = setTimeout(() => {
+        sessionStorage.removeItem(SESSION_USER_KEY)
+        setUser(null)
+        setClickPulseByTab({})
+        setLogoutPhase('idle')
+      }, 3000)
+
+      return () => {
+        clearTimeout(finishTimer)
+      }
+    }
+  }, [logoutPhase])
 
   const handleTabClick = (tabTo) => {
     setClickPulseByTab((previous) => ({
@@ -87,12 +121,16 @@ function App() {
     return <LoadingScreen isExiting={loadingPhase === 'exit'} />
   }
 
+  if (logoutPhase === 'loading') {
+    return <LoadingScreen />
+  }
+
   if (!user) {
     return <LoginScreen onGoogleSignIn={handleGoogleSignIn} />
   }
 
   return (
-    <div className="app-container">
+    <div className={`app-container${logoutPhase === 'fading' ? ' is-logging-out' : ''}`}>
       <TopBar user={user} />
 
       <main className="app-shell">
