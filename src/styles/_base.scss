@@ -1,0 +1,48 @@
+@use './palette' as *;
+
+:root {
+  --wine-primary: #{$wine-primary};
+  --wine-dark: #{$wine-dark};
+  --wine-accent: #{$wine-accent};
+  --wine-highlight: #{$wine-highlight};
+  --wine-surface: #{$wine-surface};
+  --wine-surface-elevated: #{$wine-surface-elevated};
+  --wine-border: #{$wine-border};
+  --wine-text-muted: #{$wine-text-muted};
+  --wine-glow: #{$wine-glow};
+  --font-body: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  --font-heading: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+
+  font-family: var(--font-body);
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: $wine-accent;
+  background: $wine-dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: $wine-dark;
+  color: $wine-accent;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}

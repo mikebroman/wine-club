@@ -1,0 +1,27 @@
+@use 'sass:color';
+@use './palette' as *;
+
+@mixin surface-card {
+  background: $wine-surface-elevated;
+  border: 1px solid $wine-border;
+  border-radius: 16px;
+  box-shadow: 0 14px 30px rgba($wine-dark, 0.32);
+  padding: 1.1rem;
+}
+
+@mixin mobile-nav-shell {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid $wine-border;
+  background: color.mix($wine-surface, $wine-dark, 62%);
+}
+
+@mixin tablet-up {
+  @media (min-width: 768px) {
+    @content;
+  }
+}
