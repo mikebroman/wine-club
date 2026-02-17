@@ -3,9 +3,11 @@
 $wine-primary: #3b1120;
 $wine-dark: #11070d;
 $wine-accent: #f2e7d8;
+$wine-cream: #f7f1e8;
+$wine-ink: #2a0b16;
 $wine-highlight: #bfa06a;
 $wine-surface: color.mix($wine-primary, $wine-dark, 34%);
-$wine-surface-elevated: color.scale($wine-surface, $lightness: 8%);
+$wine-surface-elevated: color.scale($wine-surface, $lightness: 4%);
 $wine-border: rgba($wine-accent, 0.16);
 $wine-text-muted: rgba($wine-accent, 0.9);
 $wine-glow: rgba($wine-primary, 0.3);

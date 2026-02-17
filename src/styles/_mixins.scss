@@ -2,11 +2,11 @@
 @use './palette' as *;
 
 @mixin surface-card {
-  background: $wine-surface-elevated;
-  border: 1px solid $wine-border;
-  border-radius: 16px;
-  box-shadow: 0 14px 30px rgba($wine-dark, 0.32);
-  padding: 1.1rem;
+  background: rgba($wine-cream, 0.92);
+  border-radius: 24px;
+  border: 1px solid rgba($wine-dark, 0.14);
+  box-shadow: 0 24px 60px rgba($wine-dark, 0.28);
+  padding: 1.6rem;
 }
 
 @mixin mobile-nav-shell {

@@ -4,14 +4,16 @@
   --wine-primary: #{$wine-primary};
   --wine-dark: #{$wine-dark};
   --wine-accent: #{$wine-accent};
+  --wine-cream: #{$wine-cream};
+  --wine-ink: #{$wine-ink};
   --wine-highlight: #{$wine-highlight};
   --wine-surface: #{$wine-surface};
   --wine-surface-elevated: #{$wine-surface-elevated};
   --wine-border: #{$wine-border};
   --wine-text-muted: #{$wine-text-muted};
   --wine-glow: #{$wine-glow};
-  --font-body: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  --font-heading: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-body: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+  --font-heading: 'Felix Titling', 'Felix Titling Regular', 'Times New Roman', serif;
 
   font-family: var(--font-body);
   line-height: 1.5;
@@ -21,7 +23,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: $wine-accent;
-  background: $wine-dark;
+  background: $wine-primary;
 }
 
 * {
@@ -30,11 +32,17 @@
 
 body {
   font-family: var(--font-body);
+  font-weight: 500;
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: $wine-dark;
+  background: $wine-primary;
   color: $wine-accent;
+}
+
+button {
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 
 h1,
@@ -44,5 +52,7 @@ h4,
 h5,
 h6 {
   font-family: var(--font-heading);
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
