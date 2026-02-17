@@ -97,7 +97,7 @@ function App() {
       <main className="app-shell">
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/home" element={<HomeScreen />} />
+          <Route path="/home" element={<HomeScreen user={user} />} />
           <Route path="/cellar" element={<CellarScreen />} />
           <Route path="/events" element={<EventsScreen />} />
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />

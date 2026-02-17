@@ -399,6 +399,148 @@
   color: rgba($wine-ink, 0.75);
 }
 
+.reactions-row {
+  margin-top: 1rem;
+}
+
+.reactions-list {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba($wine-ink, 0.12);
+  background: rgba($wine-cream, 0.72);
+  box-shadow: 0 10px 24px rgba($wine-dark, 0.12);
+  color: rgba($wine-ink, 0.9);
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.reaction-pill:hover {
+  transform: translateY(-1px);
+  border-color: rgba($wine-primary, 0.24);
+  background: rgba($wine-cream, 0.8);
+}
+
+.reaction-pill.is-selected {
+  border-color: rgba($wine-primary, 0.34);
+  background: rgba($wine-highlight, 0.12);
+}
+
+.reaction-pill-emoji {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.reaction-pill-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba($wine-ink, 0.65);
+}
+
+.reaction-add {
+  position: relative;
+}
+
+.reaction-add-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba($wine-ink, 0.12);
+  background: rgba($wine-cream, 0.62);
+  box-shadow: 0 10px 24px rgba($wine-dark, 0.12);
+  color: rgba($wine-ink, 0.65);
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.reaction-add-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba($wine-primary, 0.24);
+  background: rgba($wine-cream, 0.78);
+}
+
+.reaction-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.5rem);
+  width: min(320px, 70vw);
+  padding: 0.85rem;
+  border-radius: 16px;
+  border: 1px solid rgba($wine-ink, 0.12);
+  background: rgba($wine-cream, 0.92);
+  box-shadow: 0 24px 60px rgba($wine-dark, 0.24);
+  z-index: 20;
+}
+
+.reaction-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.reaction-suggestion {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba($wine-ink, 0.12);
+  background: rgba($wine-cream, 0.7);
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.reaction-suggestion:hover {
+  transform: translateY(-1px);
+  border-color: rgba($wine-primary, 0.24);
+  background: rgba($wine-cream, 0.8);
+}
+
+.reaction-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+.reaction-input {
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba($wine-ink, 0.12);
+  padding: 0.5rem 0.75rem;
+  background: rgba($wine-cream, 0.78);
+  color: rgba($wine-ink, 0.9);
+  font-weight: 600;
+}
+
+.reaction-submit {
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba($wine-primary, 0.18);
+  background: rgba($wine-primary, 0.06);
+  color: rgba($wine-primary, 0.9);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0 0.8rem;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.reaction-submit:hover {
+  transform: translateY(-1px);
+  background: rgba($wine-primary, 0.08);
+  border-color: rgba($wine-primary, 0.24);
+}
+
 .subtitle {
   margin: 0;
   font-size: 0.75rem;
@@ -535,12 +677,12 @@
   border: 1px solid rgba($wine-primary, 0.18);
   background: transparent;
   color: rgba($wine-primary, 0.9);
-  padding: 0.35rem 0.2rem;
+  padding: 0.3rem 0.55rem;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  border-radius: 10px;
+  border-radius: 999px;
   transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
