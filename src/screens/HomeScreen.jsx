@@ -2,36 +2,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEnvelope } from '@fortawesome/free-solid-svg-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-
-const REMINDER_ID = 'home-reminder-v1'
-const REMINDER_REACTIONS_KEY = 'wineClubReminderReactionsDraft'
+import { getCurrentAnnouncements, getNextEvent, putMyAnnouncementReaction, putMyRsvp } from '../api/wineClubApi'
 
 const suggestedEmojis = ['❤️', '🥂', '🍇', '✨', '🔥', '🙌', '😂', '😮', '👍', '👀']
-
-const mockOtherReactions = {
-  'google-mock-user-2': ['❤️', '🥂'],
-  'google-mock-user-3': ['🥂', '✨'],
-  'google-mock-user-4': ['❤️'],
-  'google-mock-user-5': ['🍇'],
-}
-
-function readAllReactions() {
-  const raw = sessionStorage.getItem(REMINDER_REACTIONS_KEY)
-  if (!raw) return {}
-
-  try {
-    const parsed = JSON.parse(raw)
-    if (parsed && typeof parsed === 'object') return parsed
-  } catch {
-    // ignore
-  }
-
-  return {}
-}
-
-function writeAllReactions(payload) {
-  sessionStorage.setItem(REMINDER_REACTIONS_KEY, JSON.stringify(payload))
-}
 
 function normalizeEmoji(value) {
   const trimmed = String(value ?? '').trim()
@@ -74,8 +47,9 @@ function buildCounts({ myEmojis, otherByUserId }) {
   return reactions
 }
 
-export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextEventRsvpSet }) {
-  const userId = useMemo(() => user?.id ?? 'anonymous', [user?.id])
+export default function HomeScreen() {
+  const [announcement, setAnnouncement] = useState(null)
+  const [nextEvent, setNextEvent] = useState(null)
   const [myEmojis, setMyEmojis] = useState([])
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [pickerValue, setPickerValue] = useState('')
@@ -87,14 +61,58 @@ export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextE
     tentative: 'Maybe',
     declined: 'Declined',
   }
-  const rsvpButtonLabel = rsvpLabelByStatus[nextEventRsvpStatus] ?? 'RSVP'
+  const [rsvpStatus, setRsvpStatus] = useState('none')
+  const rsvpButtonLabel = rsvpLabelByStatus[rsvpStatus] ?? 'RSVP'
 
   useEffect(() => {
-    const payload = readAllReactions()
-    const stored = payload?.[REMINDER_ID]?.[userId] ?? []
-    
-    setMyEmojis(Array.isArray(stored) ? uniqueEmojis(stored) : [])
-  }, [userId])
+    document.title = 'Home | Wine Club'
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    getCurrentAnnouncements()
+      .then((payload) => {
+        if (cancelled) return
+        if (!payload) return
+
+        // TODO: Confirm announcements payload shape from backend (list vs wrapper).
+        const item = Array.isArray(payload) ? payload[0] : (payload.announcement ?? payload)
+        if (item && typeof item === 'object') {
+          setAnnouncement(item)
+        }
+      })
+      .catch(() => {
+        setAnnouncement(null)
+      })
+
+    getNextEvent()
+      .then((payload) => {
+        if (cancelled) return
+        const item = payload?.event ?? payload
+        if (item && typeof item === 'object') {
+          setNextEvent(item)
+
+          // TODO: Map backend's "my RSVP" field into UI state.
+          const status = item.myRsvpStatus ?? item.myRsvp ?? item.rsvpStatus
+          if (typeof status === 'string') {
+            setRsvpStatus(status)
+          }
+        }
+      })
+      .catch(() => {
+        setNextEvent(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const announcementId = useMemo(() => {
+    const id = announcement?.id ?? announcement?.announcementId
+    return id ? String(id) : null
+  }, [announcement?.announcementId, announcement?.id])
 
   useEffect(() => {
     if (!isPickerOpen) return
@@ -114,14 +132,6 @@ export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextE
     }
   }, [isPickerOpen])
 
-  const persistMyEmojis = (nextList) => {
-    const payload = readAllReactions()
-    const reminderMap = payload[REMINDER_ID] ?? {}
-    reminderMap[userId] = uniqueEmojis(nextList)
-    payload[REMINDER_ID] = reminderMap
-    writeAllReactions(payload)
-  }
-
   const toggleReaction = (emoji) => {
     const normalized = normalizeEmoji(emoji)
     if (!normalized) return
@@ -133,7 +143,13 @@ export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextE
         : [...previous, normalized]
 
       const uniqueNext = uniqueEmojis(next)
-      persistMyEmojis(uniqueNext)
+
+      if (announcementId) {
+        putMyAnnouncementReaction(announcementId, normalized).catch(() => {
+          // TODO: Handle auth failures once auth exists.
+        })
+      }
+
       return uniqueNext
     })
   }
@@ -147,10 +163,34 @@ export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextE
   }
 
   const reactions = useMemo(() => {
-    const otherByUserId = { ...mockOtherReactions }
-    delete otherByUserId[userId]
-    return buildCounts({ myEmojis, otherByUserId })
-  }, [myEmojis, userId])
+    // TODO: Prefer backend-provided reaction counts once available.
+    // If backend includes something like `announcement.reactions`, we will use it.
+    const apiReactions = announcement?.reactions
+    if (Array.isArray(apiReactions)) {
+      return apiReactions
+        .map((entry) => ({
+          emoji: normalizeEmoji(entry?.emoji),
+          count: Number(entry?.count ?? 0),
+          isMine: Boolean(entry?.isMine),
+        }))
+        .filter((r) => r.emoji && r.count > 0)
+    }
+
+    return buildCounts({ myEmojis, otherByUserId: {} })
+  }, [announcement?.reactions, myEmojis])
+
+  const chipParts = useMemo(() => {
+    // TODO: Standardize event date shape (string vs ISO) once backend contract is known.
+    const raw = nextEvent?.date ?? nextEvent?.startsAt ?? nextEvent?.when
+    if (!raw) return { month: '—', day: '—' }
+
+    const date = new Date(raw)
+    if (Number.isNaN(date.getTime())) return { month: '—', day: '—' }
+    return {
+      month: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+      day: String(date.getDate()),
+    }
+  }, [nextEvent?.date, nextEvent?.startsAt, nextEvent?.when])
 
   return (
     <>
@@ -159,9 +199,9 @@ export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextE
           <FontAwesomeIcon icon={faEnvelope} className="kicker-icon" />
           Message from the Sommelier
         </p>
-        <h1 className="hero-title">Reminder</h1>
+        <h1 className="hero-title">{announcement?.title ?? announcement?.subject ?? 'Loading…'}</h1>
         <p className="hero-note">
-          What's up this month: a quick note about the picks, tasting notes from last month, or a reminder about the next event.
+          {announcement?.body ?? announcement?.message ?? ''}
         </p>
 
         <div className="reactions-row" aria-label="Reactions">
@@ -243,13 +283,13 @@ export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextE
       <section className="panel event-card" aria-label="Next event">
         <div className="event-head">
           <div className="event-chip" aria-hidden="true">
-            <span className="event-month">MAR</span>
-            <span className="event-day">7</span>
+            <span className="event-month">{chipParts.month}</span>
+            <span className="event-day">{chipParts.day}</span>
           </div>
           <div className="event-meta">
             <h2>Next tasting</h2>
-            <p className="event-when">Thu, Mar 7 · 7:00 PM</p>
-            <p className="event-where">Downtown Cellar Room</p>
+            <p className="event-when">{nextEvent?.dateLine ?? nextEvent?.when ?? 'Loading…'}</p>
+            <p className="event-where">{nextEvent?.location ?? nextEvent?.address ?? ''}</p>
           </div>
         </div>
         <div className="event-actions" aria-label="Event actions">
@@ -268,10 +308,15 @@ export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextE
                 type="button"
                 className="event-action"
                 onClick={() => {
-                  onNextEventRsvpSet?.('accepted')
+                  setRsvpStatus('accepted')
+                  if (nextEvent?.id) {
+                    putMyRsvp(String(nextEvent.id), { status: 'accepted' }).catch(() => {
+                      // TODO: Handle auth failures once auth exists.
+                    })
+                  }
                   setShowRsvpOptions(false)
                 }}
-                aria-pressed={nextEventRsvpStatus === 'accepted'}
+                aria-pressed={rsvpStatus === 'accepted'}
               >
                 Accept
               </button>
@@ -279,10 +324,15 @@ export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextE
                 type="button"
                 className="event-action"
                 onClick={() => {
-                  onNextEventRsvpSet?.('tentative')
+                  setRsvpStatus('tentative')
+                  if (nextEvent?.id) {
+                    putMyRsvp(String(nextEvent.id), { status: 'tentative' }).catch(() => {
+                      // TODO: Handle auth failures once auth exists.
+                    })
+                  }
                   setShowRsvpOptions(false)
                 }}
-                aria-pressed={nextEventRsvpStatus === 'tentative'}
+                aria-pressed={rsvpStatus === 'tentative'}
               >
                 Tentative
               </button>
@@ -290,16 +340,24 @@ export default function HomeScreen({ user, nextEventRsvpStatus = 'none', onNextE
                 type="button"
                 className="event-action"
                 onClick={() => {
-                  onNextEventRsvpSet?.('declined')
+                  setRsvpStatus('declined')
+                  if (nextEvent?.id) {
+                    putMyRsvp(String(nextEvent.id), { status: 'declined' }).catch(() => {
+                      // TODO: Handle auth failures once auth exists.
+                    })
+                  }
                   setShowRsvpOptions(false)
                 }}
-                aria-pressed={nextEventRsvpStatus === 'declined'}
+                aria-pressed={rsvpStatus === 'declined'}
               >
                 Decline
               </button>
             </div>
           </div>
-          <Link className="event-action event-action-link event-action-half" to="/events/2026-03-07">
+          <Link
+            className="event-action event-action-link event-action-half"
+            to={nextEvent?.id ? `/events/${String(nextEvent.id)}` : '/events'}
+          >
             Details
           </Link>
         </div>

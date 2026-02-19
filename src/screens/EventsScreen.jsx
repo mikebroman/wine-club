@@ -1,109 +1,140 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import UpcomingResponsibilities from '../components/UpcomingResponsibilities'
+import { getNextEvent, getUpcomingResponsibilities, putMyRsvp } from '../api/wineClubApi'
 
-const nextTasting = {
-  title: 'Next Event',
-  dateLine: 'Thu, Mar 7 · 7:00 PM',
-  location: '117 Boardhouse Br',
-  assignments: {
-    host: 'Mike & Kaitlin',
-    apps: 'Ryan & Kayla',
-    dessert: 'Lee & Morganne',
-  },
+function formatMonthDay(value) {
+  if (!value) return ''
+  if (typeof value === 'string' && /^[A-Z][a-z]{2}\s\d{1,2}$/.test(value.trim())) {
+    return value.trim()
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return formatted.replace(',', '')
 }
 
-const upcomingEvents = [
-  {
-    id: '2026-03-07',
-    dateShort: 'Mar 7',
-    dateLong: 'Thu, Mar 7 · 7:00 PM',
-    location: 'Downtown Cellar Room',
-    host: 'Mike & Kaitlin',
-  },
-  {
-    id: '2026-04-04',
-    dateShort: 'Apr 4',
-    dateLong: 'Sat, Apr 4 · 7:00 PM',
-    location: 'Lee Home',
-    host: 'Lee Family',
-  },
-  {
-    id: '2026-05-09',
-    dateShort: 'May 9',
-    dateLong: 'Sat, May 9 · 7:00 PM',
-    location: 'Patel Home',
-    host: 'Patel',
-  },
-]
+function normalizeResponsibilities(payload) {
+  const list = Array.isArray(payload) ? payload : (payload?.items ?? payload?.responsibilities ?? payload?.data ?? [])
+  if (!Array.isArray(list)) return null
 
-const pastEvents = [
-  {
-    id: '2026-02-03',
-    dateShort: 'Feb 3',
-    location: 'Patel Home',
-    bottlesCount: 6,
-    photosCount: 12,
-    topRated: '2018 Rioja Reserva',
-  },
-  {
-    id: '2026-01-12',
-    dateShort: 'Jan 12',
-    location: 'Gomez Home',
-    bottlesCount: 5,
-    photosCount: 8,
-    topRated: 'Chenin Blanc (Loire)',
-  },
-  {
-    id: '2025-12-07',
-    dateShort: 'Dec 7',
-    location: 'Johnsons Home',
-    bottlesCount: 7,
-    photosCount: 15,
-    topRated: 'Barolo (Nebbiolo)',
-  },
-]
+  return list
+    .map((item, index) => {
+      const source = item && typeof item === 'object' ? item : {}
+      return {
+        id: String(source.id ?? source.responsibilityId ?? index),
+        date: formatMonthDay(source.date ?? source.eventDate ?? source.when ?? source.startsAt ?? ''),
+        host: source.host ?? source.roles?.host ?? source.assignments?.host ?? '',
+        apps: source.apps ?? source.roles?.apps ?? source.assignments?.apps ?? '',
+        dessert: source.dessert ?? source.roles?.dessert ?? source.assignments?.dessert ?? '',
+      }
+    })
+    .filter((entry) => entry.date)
+}
 
-const responsibilityGatherings = [
-  { id: '1', date: 'Mar 7', host: 'Johnsons', apps: 'Lee', dessert: 'Patel' },
-  { id: '2', date: 'Apr 11', host: 'Lee', apps: 'Patel', dessert: 'You' },
-  { id: '3', date: 'May 16', host: 'Patel', apps: 'You', dessert: 'Gomez' },
-]
+function normalizeNextEvent(payload) {
+  const source = payload?.event ?? payload
+  if (!source || typeof source !== 'object') return null
 
-export default function EventsScreen({ nextEventRsvpStatus = 'none', onNextEventRsvpSet }) {
-  const [listView, setListView] = useState('upcoming')
+  const assignments = source.assignments && typeof source.assignments === 'object' ? source.assignments : {}
+
+  return {
+    id: String(source.id ?? source.eventId ?? ''),
+    title: source.title ?? source.name ?? '',
+    dateLine: source.dateLine ?? source.when ?? source.dateText ?? '',
+    location: source.location ?? source.address ?? '',
+    assignments: {
+      host: assignments.host ?? source.host ?? '',
+      apps: assignments.apps ?? '',
+      dessert: assignments.dessert ?? '',
+    },
+  }
+}
+
+export default function EventsScreen() {
   const [showRsvpOptions, setShowRsvpOptions] = useState(false)
+  const [nextEvent, setNextEvent] = useState(null)
+  const [gatherings, setGatherings] = useState([])
+  const [rsvpStatus, setRsvpStatus] = useState('none')
   const rsvpLabelByStatus = {
     none: 'RSVP',
     accepted: 'Going',
     tentative: 'Maybe',
     declined: 'Declined',
   }
-  const rsvpButtonLabel = rsvpLabelByStatus[nextEventRsvpStatus] ?? 'RSVP'
+  const rsvpButtonLabel = rsvpLabelByStatus[rsvpStatus] ?? 'RSVP'
+
+  useEffect(() => {
+    document.title = 'Events | Wine Club'
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    getNextEvent()
+      .then((payload) => {
+        if (cancelled) return
+        const normalized = normalizeNextEvent(payload)
+        if (normalized) {
+          setNextEvent(normalized)
+
+          // TODO: Map backend's "my RSVP" field into UI state.
+          const status = payload?.myRsvpStatus ?? payload?.event?.myRsvpStatus
+          if (typeof status === 'string') setRsvpStatus(status)
+        }
+      })
+      .catch(() => {
+        setNextEvent(null)
+      })
+
+    // TODO: Provide HouseholdId once we have it from /api/v1/me/profile.
+    getUpcomingResponsibilities({ limit: 10 })
+      .then((payload) => {
+        if (cancelled) return
+        const normalized = normalizeResponsibilities(payload)
+        if (normalized?.length) setGatherings(normalized)
+      })
+      .catch(() => {
+        setGatherings([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const displayEvent = nextEvent ?? {
+    id: null,
+    title: 'Loading…',
+    dateLine: '',
+    location: '',
+    assignments: { host: '', apps: '', dessert: '' },
+  }
 
   return (
     <>
       <section className="panel events-hero" aria-label="Next tasting">
         <div className="events-hero-head">
-          <h2 className="events-hero-title">{nextTasting.title}</h2>
+          <h2 className="events-hero-title">{displayEvent.title}</h2>
           <div className="events-hero-divider" aria-hidden="true" />
         </div>
 
-        <p className="events-next-date">{nextTasting.dateLine}</p>
-        <p className="events-next-location">{nextTasting.location}</p>
+        <p className="events-next-date">{displayEvent.dateLine}</p>
+        <p className="events-next-location">{displayEvent.location}</p>
 
         <div className="events-assignments" aria-label="Assignments">
           <div className="events-assignment">
             <span className="events-assignment-label">Host</span>
-            <span className="events-assignment-value">{nextTasting.assignments.host}</span>
+            <span className="events-assignment-value">{displayEvent.assignments.host}</span>
           </div>
           <div className="events-assignment">
             <span className="events-assignment-label">Apps</span>
-            <span className="events-assignment-value">{nextTasting.assignments.apps}</span>
+            <span className="events-assignment-value">{displayEvent.assignments.apps}</span>
           </div>
           <div className="events-assignment">
             <span className="events-assignment-label">Dessert</span>
-            <span className="events-assignment-value">{nextTasting.assignments.dessert}</span>
+            <span className="events-assignment-value">{displayEvent.assignments.dessert}</span>
           </div>
         </div>
 
@@ -123,10 +154,15 @@ export default function EventsScreen({ nextEventRsvpStatus = 'none', onNextEvent
                 type="button"
                 className="event-action"
                 onClick={() => {
-                  onNextEventRsvpSet?.('accepted')
+                  setRsvpStatus('accepted')
+                  if (displayEvent.id) {
+                    putMyRsvp(displayEvent.id, { status: 'accepted' }).catch(() => {
+                      // TODO: Handle auth failures once auth exists.
+                    })
+                  }
                   setShowRsvpOptions(false)
                 }}
-                aria-pressed={nextEventRsvpStatus === 'accepted'}
+                aria-pressed={rsvpStatus === 'accepted'}
               >
                 Accept
               </button>
@@ -134,10 +170,15 @@ export default function EventsScreen({ nextEventRsvpStatus = 'none', onNextEvent
                 type="button"
                 className="event-action"
                 onClick={() => {
-                  onNextEventRsvpSet?.('tentative')
+                  setRsvpStatus('tentative')
+                  if (displayEvent.id) {
+                    putMyRsvp(displayEvent.id, { status: 'tentative' }).catch(() => {
+                      // TODO: Handle auth failures once auth exists.
+                    })
+                  }
                   setShowRsvpOptions(false)
                 }}
-                aria-pressed={nextEventRsvpStatus === 'tentative'}
+                aria-pressed={rsvpStatus === 'tentative'}
               >
                 Tentative
               </button>
@@ -145,75 +186,33 @@ export default function EventsScreen({ nextEventRsvpStatus = 'none', onNextEvent
                 type="button"
                 className="event-action"
                 onClick={() => {
-                  onNextEventRsvpSet?.('declined')
+                  setRsvpStatus('declined')
+                  if (displayEvent.id) {
+                    putMyRsvp(displayEvent.id, { status: 'declined' }).catch(() => {
+                      // TODO: Handle auth failures once auth exists.
+                    })
+                  }
                   setShowRsvpOptions(false)
                 }}
-                aria-pressed={nextEventRsvpStatus === 'declined'}
+                aria-pressed={rsvpStatus === 'declined'}
               >
                 Decline
               </button>
             </div>
           </div>
-          <Link className="event-action event-action-link event-action-half" to="/events/2026-03-07">
+          <Link
+            className="event-action event-action-link event-action-half"
+            to={displayEvent.id ? `/events/${displayEvent.id}` : '/events'}
+          >
             Details
           </Link>
         </div>
       </section>
 
       <UpcomingResponsibilities
-        gatherings={responsibilityGatherings}
+        gatherings={gatherings}
         currentHousehold="You"
       />
-
-      {/* <section className="events-list" aria-label="Events list">
-        <div className="events-list-tabs" role="tablist" aria-label="Upcoming or past">
-          <button
-            type="button"
-            className={`events-list-tab${listView === 'upcoming' ? ' is-active' : ''}`}
-            onClick={() => setListView('upcoming')}
-            role="tab"
-            aria-selected={listView === 'upcoming'}
-          >
-            Upcoming
-          </button>
-          <button
-            type="button"
-            className={`events-list-tab${listView === 'past' ? ' is-active' : ''}`}
-            onClick={() => setListView('past')}
-            role="tab"
-            aria-selected={listView === 'past'}
-          >
-            Past
-          </button>
-        </div>
-
-        <div className="events-cards" aria-label="Event cards">
-          {listView === 'upcoming'
-            ? upcomingEvents.slice(0, 3).map((event) => (
-                <article key={event.id} className="panel events-compact" aria-label="Upcoming event">
-                  <div className="events-compact-head">
-                    <span className="events-compact-date">{event.dateShort}</span>
-                    <span className="events-compact-meta">{event.location}</span>
-                  </div>
-                  <p className="events-compact-sub">{event.dateLong}</p>
-                  <p className="events-compact-sub">Host: {event.host}</p>
-                </article>
-              ))
-            : pastEvents.map((event) => (
-                <article key={event.id} className="panel events-compact" aria-label="Past event">
-                  <div className="events-compact-head">
-                    <span className="events-compact-date">{event.dateShort}</span>
-                    <span className="events-compact-meta">{event.location}</span>
-                  </div>
-                  <p className="events-compact-stats">
-                    <span aria-hidden="true">🍇</span> {event.bottlesCount} bottles ·{' '}
-                    <span aria-hidden="true">📷</span> {event.photosCount} photos
-                  </p>
-                  <p className="events-compact-sub">Top rated: {event.topRated}</p>
-                </article>
-              ))}
-        </div>
-      </section> */}
     </>
   )
 }

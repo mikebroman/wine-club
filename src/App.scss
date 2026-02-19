@@ -318,15 +318,23 @@
   color: rgba(42, 11, 22, 0.75);
 }
 
+.google-signin {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.google-signin-target {
+  width: 100%;
+}
+
 .google-btn {
   width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.65rem;
   border: 1px solid rgba(59, 17, 32, 0.3);
   border-radius: 14px;
-  padding: 0.85rem 1.2rem;
   background: #f4eadc;
   color: $wine-primary;
   font-size: 0.95rem;

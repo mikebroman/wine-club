@@ -18,9 +18,17 @@ import EventsScreen from './screens/EventsScreen'
 import EventDetailsScreen from './screens/EventDetailsScreen'
 import HomeScreen from './screens/HomeScreen'
 import ProfileScreen from './screens/ProfileScreen'
+import { getMe, postGoogleAuth } from './api/wineClubApi'
 
-const SESSION_USER_KEY = 'wineClubUser'
-const RSVP_STATE_KEY = 'wineClubRsvpByEvent'
+function setAccessToken(token) {
+  if (!token) return
+  sessionStorage.setItem('wineClubAccessToken', token)
+}
+
+function clearAccessToken() {
+  sessionStorage.removeItem('wineClubAccessToken')
+  localStorage.removeItem('wineClubAccessToken')
+}
 
 const tabs = [
   { to: '/home', label: 'Home', icon: faHouse },
@@ -32,34 +40,8 @@ const tabs = [
 function App() {
   const [loadingPhase, setLoadingPhase] = useState('enter')
   const [logoutPhase, setLogoutPhase] = useState('idle')
-  const [rsvpByEvent, setRsvpByEvent] = useState(() => {
-    const rawRsvp = sessionStorage.getItem(RSVP_STATE_KEY)
-
-    if (!rawRsvp) {
-      return {}
-    }
-
-    try {
-      const parsed = JSON.parse(rawRsvp)
-      return typeof parsed === 'object' && parsed !== null ? parsed : {}
-    } catch {
-      sessionStorage.removeItem(RSVP_STATE_KEY)
-      return {}
-    }
-  })
-  const [user, setUser] = useState(() => {
-    const rawUser = sessionStorage.getItem(SESSION_USER_KEY)
-    if (!rawUser) {
-      return null
-    }
-
-    try {
-      return JSON.parse(rawUser)
-    } catch {
-      sessionStorage.removeItem(SESSION_USER_KEY)
-      return null
-    }
-  })
+  const [user, setUser] = useState(null)
+  const [meLoading, setMeLoading] = useState(true)
 
   useEffect(() => {
     const exitTimer = setTimeout(() => {
@@ -75,16 +57,55 @@ function App() {
     }
   }, [])
 
-  const handleGoogleSignIn = () => {
-    const mockUser = {
-      id: 'google-mock-user-1',
-      name: 'Mike Broman',
-      email: 'mikebroman2@google.com',
-      provider: 'google',
+  useEffect(() => {
+    let cancelled = false
+
+    getMe()
+      .then((payload) => {
+        if (cancelled) return
+        setUser(payload && typeof payload === 'object' ? payload : null)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setUser(null)
+      })
+      .finally(() => {
+        if (cancelled) return
+        setMeLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleSignedIn = async (credential) => {
+    const googleCredential = typeof credential === 'string' ? credential.trim() : ''
+    if (!googleCredential) {
+      return
     }
 
-    sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(mockUser))
-    setUser(mockUser)
+    setMeLoading(true)
+
+    try {
+      const exchange = await postGoogleAuth({ credential: googleCredential })
+      const accessToken = exchange && typeof exchange === 'object' ? String(exchange.accessToken ?? '').trim() : ''
+
+      if (!accessToken) {
+        clearAccessToken()
+        setUser(null)
+        return
+      }
+
+      setAccessToken(accessToken)
+      const payload = await getMe()
+      setUser(payload && typeof payload === 'object' ? payload : null)
+    } catch {
+      clearAccessToken()
+      setUser(null)
+    } finally {
+      setMeLoading(false)
+    }
   }
 
   const handleLogout = () => {
@@ -114,11 +135,11 @@ function App() {
 
     if (logoutPhase === 'loading') {
       const finishTimer = setTimeout(() => {
-        sessionStorage.removeItem(SESSION_USER_KEY)
-        sessionStorage.removeItem(RSVP_STATE_KEY)
+        clearAccessToken()
         setUser(null)
-        setRsvpByEvent({})
         setLogoutPhase('idle')
+
+        // TODO: Call backend logout / token revocation when auth exists.
       }, 3000)
 
       return () => {
@@ -127,20 +148,7 @@ function App() {
     }
   }, [logoutPhase])
 
-  const handleSetRsvpStatus = (eventId, status) => {
-    setRsvpByEvent((previous) => {
-      const nextStatus = status ?? 'none'
-      const nextState = {
-        ...previous,
-        [eventId]: nextStatus,
-      }
-
-      sessionStorage.setItem(RSVP_STATE_KEY, JSON.stringify(nextState))
-      return nextState
-    })
-  }
-
-  if (loadingPhase !== 'done') {
+  if (loadingPhase !== 'done' || meLoading) {
     return <LoadingScreen isExiting={loadingPhase === 'exit'} />
   }
 
@@ -149,7 +157,7 @@ function App() {
   }
 
   if (!user) {
-    return <LoginScreen onGoogleSignIn={handleGoogleSignIn} />
+    return <LoginScreen onSignedIn={handleSignedIn} />
   }
 
   return (
@@ -159,31 +167,11 @@ function App() {
       <main className="app-shell">
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route
-            path="/home"
-            element={
-              <HomeScreen
-                user={user}
-                nextEventRsvpStatus={rsvpByEvent['2026-03-07'] ?? 'none'}
-                onNextEventRsvpSet={(status) => handleSetRsvpStatus('2026-03-07', status)}
-              />
-            }
-          />
+          <Route path="/home" element={<HomeScreen />} />
           <Route path="/cellar" element={<CellarScreen />} />
           <Route path="/cellar/:bottleId" element={<BottleDetailsScreen />} />
-          <Route
-            path="/events"
-            element={
-              <EventsScreen
-                nextEventRsvpStatus={rsvpByEvent['2026-03-07'] ?? 'none'}
-                onNextEventRsvpSet={(status) => handleSetRsvpStatus('2026-03-07', status)}
-              />
-            }
-          />
-          <Route
-            path="/events/:eventId"
-            element={<EventDetailsScreen rsvpByEvent={rsvpByEvent} onRsvpSet={handleSetRsvpStatus} />}
-          />
+          <Route path="/events" element={<EventsScreen />} />
+          <Route path="/events/:eventId" element={<EventDetailsScreen />} />
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />
         </Routes>
       </main>

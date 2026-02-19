@@ -1,23 +1,46 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faWineGlassEmpty } from '@fortawesome/free-solid-svg-icons'
 import { Link } from 'react-router-dom'
 import {
   averageRating,
-  bottleCatalog,
   lovesCount,
   ratingSummary,
-  recentBottles,
-  topRatedBottles,
 } from '../data/bottles'
+import { listBottles } from '../api/wineClubApi'
+import { normalizeBottlesResponse } from '../api/normalize'
 
 const filters = ['All', 'Loved ❤️', 'Recent', 'Reds', 'Whites', 'Sparkling', 'Dessert', 'Bangers only']
+
+function sortRecent(list) {
+  return [...list].sort((a, b) => {
+    const aKey = Number(String(a.eventId ?? '').replaceAll('-', ''))
+    const bKey = Number(String(b.eventId ?? '').replaceAll('-', ''))
+    return bKey - aKey
+  })
+}
+
+function topRatedFromList(list, limit = 5) {
+  return [...list]
+    .sort((a, b) => {
+      const byAverage = averageRating(b) - averageRating(a)
+      if (byAverage !== 0) return byAverage
+
+      const byLoves = lovesCount(b) - lovesCount(a)
+      if (byLoves !== 0) return byLoves
+
+      const aVotes = (a.ratings?.love ?? 0) + (a.ratings?.like ?? 0) + (a.ratings?.meh ?? 0)
+      const bVotes = (b.ratings?.love ?? 0) + (b.ratings?.like ?? 0) + (b.ratings?.meh ?? 0)
+      return bVotes - aVotes
+    })
+    .slice(0, limit)
+}
 
 function matchesFilter(bottle, filter) {
   if (filter === 'All') return true
   if (filter === 'Loved ❤️') return lovesCount(bottle) >= 4
-  if (filter === 'Recent') return Number(bottle.eventId.replaceAll('-', '')) >= 20260101
-  if (filter === 'Bangers only') return bottle.tags.includes('banger')
+  if (filter === 'Recent') return Number(String(bottle.eventId ?? '').replaceAll('-', '')) >= 20260101
+  if (filter === 'Bangers only') return Boolean(bottle.tags?.includes?.('banger'))
   return bottle.type === filter
 }
 
@@ -45,15 +68,46 @@ function matchesSearch(bottle, query) {
 export default function CellarScreen() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
+  const [bottles, setBottles] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
+
+  useEffect(() => {
+    document.title = 'Bottles | Wine Club'
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    listBottles({ pageSize: 250 })
+      .then((payload) => {
+        if (cancelled) return
+        const normalized = normalizeBottlesResponse(payload)
+        setBottles(sortRecent(normalized))
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setLoadError(error)
+        setBottles([])
+      })
+      .finally(() => {
+        if (cancelled) return
+        setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const filteredBottles = useMemo(() => {
-    return recentBottles().filter((bottle) => matchesFilter(bottle, activeFilter) && matchesSearch(bottle, searchQuery))
-  }, [activeFilter, searchQuery])
+    return bottles.filter((bottle) => matchesFilter(bottle, activeFilter) && matchesSearch(bottle, searchQuery))
+  }, [activeFilter, bottles, searchQuery])
 
   const hallOfFameBottles = useMemo(() => {
-    const shortlist = topRatedBottles(8).filter((bottle) => filteredBottles.some((item) => item.id === bottle.id))
-    return shortlist.length ? shortlist : topRatedBottles(8)
-  }, [filteredBottles])
+    const shortlist = topRatedFromList(bottles, 8).filter((bottle) => filteredBottles.some((item) => item.id === bottle.id))
+    return shortlist.length ? shortlist : topRatedFromList(bottles, 8)
+  }, [bottles, filteredBottles])
 
   const usingSearch = searchQuery.trim().length > 0
 
@@ -123,7 +177,21 @@ export default function CellarScreen() {
           <p>{usingSearch ? 'Search results' : 'Memory mode'}</p>
         </div>
 
-        {usingSearch ? (
+        {loading ? (
+          <div className="panel bottle-empty" aria-label="Loading bottles">
+            <h3>Loading…</h3>
+            <p />
+          </div>
+        ) : null}
+
+        {!loading && loadError ? (
+          <div className="panel bottle-empty" aria-label="Failed to load bottles">
+            <h3>Unable to load bottles.</h3>
+            <p />
+          </div>
+        ) : null}
+
+        {!loading && !loadError && usingSearch ? (
           <div className="bottle-list-view" aria-label="Bottle list view">
             {filteredBottles.map((bottle) => (
               <Link key={bottle.id} to={`/cellar/${bottle.id}`} className="bottle-list-item">
@@ -147,7 +215,7 @@ export default function CellarScreen() {
               </Link>
             ))}
           </div>
-        ) : (
+        ) : (!loading && !loadError ? (
           <div className="bottle-grid-view" aria-label="Bottle grid view">
             {filteredBottles.map((bottle) => (
               <Link key={bottle.id} to={`/cellar/${bottle.id}`} className="bottle-grid-card">
@@ -173,9 +241,9 @@ export default function CellarScreen() {
               </Link>
             ))}
           </div>
-        )}
+        ) : null)}
 
-        {!filteredBottles.length ? (
+        {!loading && !loadError && !filteredBottles.length ? (
           <div className="panel bottle-empty" aria-label="No matching bottles">
             <h3>No bottles match that search yet.</h3>
             <p>Try a broader search term or switch filter chips.</p>

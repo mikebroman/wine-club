@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faWineGlassEmpty } from '@fortawesome/free-solid-svg-icons'
 import { Link, useParams } from 'react-router-dom'
-import { averageRating, bottleCatalog, lovesCount, ratingSummary } from '../data/bottles'
+import { averageRating, lovesCount, ratingSummary } from '../data/bottles'
+import { buildUploadUrl, getBottle, listBottles, putMyBottleNote, putMyBottleRating, uploadBottlePhoto } from '../api/wineClubApi'
+import { normalizeBottle, normalizeBottlesResponse } from '../api/normalize'
 
 const ratingLabels = [
   { key: 'love', icon: '❤️', label: 'Love' },
@@ -10,12 +12,14 @@ const ratingLabels = [
   { key: 'meh', icon: '😐', label: 'Meh' },
 ]
 
-function buildSimilarHits(targetBottle) {
-  return bottleCatalog
-    .filter((bottle) => bottle.id !== targetBottle.id)
+function buildSimilarHitsFromList(targetBottle, list) {
+  const targetTags = Array.isArray(targetBottle?.tags) ? targetBottle.tags : []
+  return (Array.isArray(list) ? list : [])
+    .filter((bottle) => bottle?.id && bottle.id !== targetBottle?.id)
     .map((bottle) => {
-      const sharedTags = bottle.tags.filter((tag) => targetBottle.tags.includes(tag)).length
-      const typeBonus = bottle.type === targetBottle.type ? 1 : 0
+      const tags = Array.isArray(bottle.tags) ? bottle.tags : []
+      const sharedTags = tags.filter((tag) => targetTags.includes(tag)).length
+      const typeBonus = bottle.type && targetBottle?.type && bottle.type === targetBottle.type ? 1 : 0
       return {
         bottle,
         score: sharedTags + typeBonus,
@@ -27,17 +31,112 @@ function buildSimilarHits(targetBottle) {
     .map((entry) => entry.bottle)
 }
 
+function extractPhotoUrl(payload) {
+  if (!payload) return null
+  if (typeof payload === 'string') return payload
+  if (payload.url) return String(payload.url)
+  if (payload.photoUrl) return String(payload.photoUrl)
+  if (payload.path) return buildUploadUrl(payload.path)
+  if (payload.photoPath) return buildUploadUrl(payload.photoPath)
+  return null
+}
+
 export default function BottleDetailsScreen() {
   const { bottleId } = useParams()
-  const bottle = bottleCatalog.find((item) => item.id === bottleId) ?? bottleCatalog[0]
-  const hasPhoto = Boolean(bottle.image)
+  const [bottle, setBottle] = useState(null)
+  const [allBottles, setAllBottles] = useState([])
+  const [loadError, setLoadError] = useState(null)
+  const hasPhoto = Boolean(bottle?.image)
   const [selectedRating, setSelectedRating] = useState('')
   const [notes, setNotes] = useState('')
+  const fileInputRef = useRef(null)
 
-  const similarHits = useMemo(() => buildSimilarHits(bottle), [bottle])
+  useEffect(() => {
+    const producer = bottle?.producer
+    const name = bottle?.name
+    const vintage = bottle?.vintage
+    const label = [producer, name, vintage].filter(Boolean).join(' ')
+    document.title = label ? `${label} | Wine Club` : 'Bottle | Wine Club'
+  }, [bottle?.name, bottle?.producer, bottle?.vintage])
+
+  useEffect(() => {
+    let cancelled = false
+
+    queueMicrotask(() => {
+      if (cancelled) return
+      setLoadError(null)
+      setBottle({
+        id: String(bottleId ?? ''),
+        producer: '',
+        name: 'Loading…',
+        vintage: '',
+        type: '',
+        region: '',
+        eventDate: '',
+        eventTitle: '',
+        host: '',
+        broughtBy: '',
+        image: null,
+        tags: [],
+        ratings: { love: 0, like: 0, meh: 0 },
+      })
+    })
+
+    if (!bottleId) {
+      return () => {
+        cancelled = true
+      }
+    }
+
+    getBottle(bottleId)
+      .then((payload) => {
+        if (cancelled) return
+        const normalized = normalizeBottle(payload)
+        if (normalized?.id) {
+          setBottle(normalized)
+
+          // TODO: Initialize these from backend fields once contract is known.
+          // e.g. `normalized.myRating` / `normalized.myNote`.
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setLoadError(error)
+      })
+      .finally(() => {
+        if (cancelled) return
+      })
+
+    // Used only for the "Similar hits" section.
+    listBottles({ pageSize: 250 })
+      .then((payload) => {
+        if (cancelled) return
+        setAllBottles(normalizeBottlesResponse(payload))
+      })
+      .catch(() => {
+        // TODO: Decide if similar hits should hide or show an error.
+        setAllBottles([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [bottleId])
+
+  const similarHits = useMemo(() => {
+    if (!bottle?.id) return []
+    return buildSimilarHitsFromList(bottle, allBottles)
+  }, [allBottles, bottle])
 
   return (
     <section className="panel bottle-detail" aria-label="Bottle details">
+      {loadError ? (
+        <div className="panel bottle-empty" aria-label="Failed to load bottle">
+          <h3>Unable to load bottle.</h3>
+          <p />
+        </div>
+      ) : null}
+
       {hasPhoto ? (
         <img className="bottle-detail-image" src={bottle.image} alt={`${bottle.producer} ${bottle.name}`} />
       ) : (
@@ -50,11 +149,11 @@ export default function BottleDetailsScreen() {
       )}
 
       <div className="bottle-detail-head">
-        <h1>{bottle.producer} {bottle.name}</h1>
-        <p className="bottle-detail-vintage">Vintage: {bottle.vintage}</p>
-        <p className="bottle-detail-meta">From: {bottle.eventDate} at {bottle.eventTitle}</p>
-        <p className="bottle-detail-meta">Brought by: {bottle.broughtBy}</p>
-        <p className="bottle-detail-rating-summary">{ratingSummary(bottle)} · ❤️ {lovesCount(bottle)} · {averageRating(bottle).toFixed(1)}</p>
+        <h1>{bottle?.producer} {bottle?.name}</h1>
+        <p className="bottle-detail-vintage">Vintage: {bottle?.vintage ?? ''}</p>
+        <p className="bottle-detail-meta">From: {bottle?.eventDate ?? ''} at {bottle?.eventTitle ?? ''}</p>
+        <p className="bottle-detail-meta">Brought by: {bottle?.broughtBy ?? ''}</p>
+        <p className="bottle-detail-rating-summary">{bottle ? ratingSummary(bottle) : ''} · ❤️ {bottle ? lovesCount(bottle) : 0} · {bottle ? averageRating(bottle).toFixed(1) : '0.0'}</p>
       </div>
 
       <div className="bottle-detail-ratings" aria-label="Rate this bottle">
@@ -63,7 +162,14 @@ export default function BottleDetailsScreen() {
             key={rating.key}
             type="button"
             className={`bottle-rate-btn${selectedRating === rating.key ? ' is-active' : ''}`}
-            onClick={() => setSelectedRating(rating.key)}
+            onClick={() => {
+              setSelectedRating(rating.key)
+              if (bottle?.id) {
+                putMyBottleRating(bottle.id, { rating: rating.key }).catch(() => {
+                  // TODO: Handle auth failures once auth exists.
+                })
+              }
+            }}
             aria-pressed={selectedRating === rating.key}
           >
             <span aria-hidden="true">{rating.icon}</span> {rating.label}
@@ -77,9 +183,48 @@ export default function BottleDetailsScreen() {
           id="bottle-note"
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
+          onBlur={() => {
+            if (bottle?.id) {
+              putMyBottleNote(bottle.id, { note: notes }).catch(() => {
+                // TODO: Handle auth failures once auth exists.
+              })
+            }
+          }}
           placeholder="Add your tasting note"
         />
-        <button type="button" className="bottle-photo-btn">{hasPhoto ? 'Change photo' : 'Add photo'}</button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            if (!file) return
+
+            if (!bottle?.id) return
+
+            uploadBottlePhoto(bottle.id, file)
+              .then((payload) => {
+                const url = extractPhotoUrl(payload)
+                if (!url) return
+                setBottle((previous) => ({ ...previous, image: url }))
+              })
+              .catch(() => {
+                // TODO: Handle auth failures once auth exists.
+              })
+              .finally(() => {
+                // Allow selecting the same file again.
+                if (fileInputRef.current) fileInputRef.current.value = ''
+              })
+          }}
+        />
+        <button
+          type="button"
+          className="bottle-photo-btn"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {hasPhoto ? 'Change photo' : 'Add photo'}
+        </button>
       </div>
 
       <div className="bottle-similar" aria-label="Similar hits">
