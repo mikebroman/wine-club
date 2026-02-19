@@ -19,11 +19,11 @@ export default function ProfileScreen({ onLogout }) {
         <ul className="wine-list">
           <li>
             <span>Name</span>
-            <span>Mike & Sarah</span>
+            <span>Mike & </span>
           </li>
           <li>
             <span>Members</span>
-            <span>Mike, Sarah</span>
+            <span>Mike, Kaitlin</span>
           </li>
           <li>
             <span>Rotation Roles</span>

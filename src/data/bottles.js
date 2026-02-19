@@ -61,7 +61,7 @@ export const bottleCatalog = [
     eventDate: 'Dec 7',
     eventTitle: 'Johnsons Holiday Night',
     host: 'Johnsons',
-    broughtBy: 'Mike & Sarah',
+    broughtBy: 'Mike & Kaitlin',
     image:
       'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=1200&q=80',
     ratings: { love: 4, like: 2, meh: 0 },
