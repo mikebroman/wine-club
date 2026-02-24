@@ -18,7 +18,23 @@ function getBaseUrl() {
 
 export function buildUrl(path, query) {
   const base = getBaseUrl()
-  const normalizedPath = String(path ?? '')
+  let normalizedPath = String(path ?? '')
+
+  if (base) {
+    try {
+      const baseUrl = new URL(base, window.location.origin)
+      const basePath = (baseUrl.pathname || '').replace(/\/$/, '')
+      const pathWithLeadingSlash = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`
+
+      if (basePath && basePath !== '/' && (pathWithLeadingSlash === basePath || pathWithLeadingSlash.startsWith(`${basePath}/`))) {
+        normalizedPath = pathWithLeadingSlash.slice(basePath.length) || '/'
+      } else {
+        normalizedPath = pathWithLeadingSlash
+      }
+    } catch {
+      // If base isn't a valid URL, fall back to the original path behavior.
+    }
+  }
 
   const url = new URL(`${base}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`, window.location.origin)
 

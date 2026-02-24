@@ -89,14 +89,9 @@ export function getUpcomingResponsibilities({ householdId, limit } = {}) {
   })
 }
 
-export function getOpenApiSpec() {
-  return apiFetch('/openapi/v1.json')
-}
-
 export function buildUploadUrl(path) {
   if (!path) return null
   const raw = String(path)
   if (/^https?:\/\//i.test(raw)) return raw
-  const normalized = raw.startsWith('/') ? raw : `/uploads/${raw}`
-  return buildUrl(normalized)
+  return buildUrl(raw)
 }

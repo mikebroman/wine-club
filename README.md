@@ -19,7 +19,13 @@ This app uses Google Identity Services on the client.
 
 Optional (local dev API):
 
-- `VITE_API_PROXY_TARGET=http://localhost:3000`
+- `VITE_API_BASE_URL=https://localhost:44339`
+
+Notes:
+
+- Your API URL depends on how you launch the backend.
+	- Kestrel profile often looks like `https://localhost:7282` (and HTTP `http://localhost:5065` which may redirect).
+	- IIS Express profile often looks like `https://localhost:44339`.
 
 2) Start the app: `npm run dev`
 
@@ -39,7 +45,8 @@ Notes:
 
 - **`POST http://localhost:5173/api/v1/auth/google 404`**
 	- This means you’re talking to the Vite dev server, but you don’t have a backend serving `/api/v1/*`.
-	- Run your backend and set `VITE_API_PROXY_TARGET` (recommended in dev to avoid CORS), for example `VITE_API_PROXY_TARGET=http://localhost:3000`.
+	- Run your backend and set `VITE_API_BASE_URL`, for example `VITE_API_BASE_URL=https://localhost:44339`.
+	- If you prefer using a Vite dev proxy to avoid CORS, set `VITE_API_PROXY_TARGET` instead.
 
 ## Current MVP
 
