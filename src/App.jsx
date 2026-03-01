@@ -1,4 +1,3 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -7,6 +6,7 @@ import {
   faWineBottle,
   faQuestion,
 } from '@fortawesome/free-solid-svg-icons'
+import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import './App.scss'
 
 import LoadingScreen from './components/LoadingScreen'
@@ -38,6 +38,7 @@ const tabs = [
 ]
 
 function App() {
+  const navigate = useNavigate()
   const [loadingPhase, setLoadingPhase] = useState('enter')
   const [logoutPhase, setLogoutPhase] = useState('idle')
   const [user, setUser] = useState(null)
@@ -109,13 +110,12 @@ function App() {
   }
 
   const handleLogout = () => {
-    setLogoutPhase((previous) => {
-      if (previous !== 'idle') {
-        return previous
-      }
+    if (logoutPhase !== 'idle') {
+      return
+    }
 
-      return 'fading'
-    })
+    clearAccessToken()
+    setLogoutPhase('fading')
   }
 
   useEffect(() => {
@@ -135,8 +135,8 @@ function App() {
 
     if (logoutPhase === 'loading') {
       const finishTimer = setTimeout(() => {
-        clearAccessToken()
         setUser(null)
+        navigate('/', { replace: true })
         setLogoutPhase('idle')
 
         // TODO: Call backend logout / token revocation when auth exists.
@@ -146,7 +146,7 @@ function App() {
         clearTimeout(finishTimer)
       }
     }
-  }, [logoutPhase])
+  }, [logoutPhase, navigate])
 
   if (loadingPhase !== 'done' || meLoading) {
     return <LoadingScreen isExiting={loadingPhase === 'exit'} />
