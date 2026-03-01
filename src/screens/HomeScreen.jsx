@@ -50,6 +50,8 @@ function buildCounts({ myEmojis, otherByUserId }) {
 export default function HomeScreen() {
   const [announcement, setAnnouncement] = useState(null)
   const [nextEvent, setNextEvent] = useState(null)
+  const [hasCheckedAnnouncement, setHasCheckedAnnouncement] = useState(false)
+  const [hasCheckedNextEvent, setHasCheckedNextEvent] = useState(false)
   const [myEmojis, setMyEmojis] = useState([])
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [pickerValue, setPickerValue] = useState('')
@@ -85,6 +87,9 @@ export default function HomeScreen() {
       .catch(() => {
         setAnnouncement(null)
       })
+      .finally(() => {
+        if (!cancelled) setHasCheckedAnnouncement(true)
+      })
 
     getNextEvent()
       .then((payload) => {
@@ -103,11 +108,19 @@ export default function HomeScreen() {
       .catch(() => {
         setNextEvent(null)
       })
+      .finally(() => {
+        if (!cancelled) setHasCheckedNextEvent(true)
+      })
 
     return () => {
       cancelled = true
     }
   }, [])
+
+  const showQuietState = useMemo(() => {
+    if (!hasCheckedAnnouncement || !hasCheckedNextEvent) return false
+    return !announcement && !nextEvent
+  }, [announcement, hasCheckedAnnouncement, hasCheckedNextEvent, nextEvent])
 
   const announcementId = useMemo(() => {
     const id = announcement?.id ?? announcement?.announcementId
@@ -194,174 +207,189 @@ export default function HomeScreen() {
 
   return (
     <>
-      <header className="hero">
-        <p className="kicker">
-          <FontAwesomeIcon icon={faEnvelope} className="kicker-icon" />
-          Message from the Sommelier
-        </p>
-        <h1 className="hero-title">{announcement?.title ?? announcement?.subject ?? 'Loading…'}</h1>
-        <p className="hero-note">
-          {announcement?.body ?? announcement?.message ?? ''}
-        </p>
+      {announcement ? (
+        <header className="hero">
+          <p className="kicker">
+            <FontAwesomeIcon icon={faEnvelope} className="kicker-icon" />
+            Message from the Sommelier
+          </p>
+          <h1 className="hero-title">{announcement.title}</h1>
+          <p className="hero-note">
+            {announcement.body ?? announcement.message ?? ''}
+          </p>
 
-        <div className="reactions-row" aria-label="Reactions">
-          <div className="reactions-list" aria-label="Reaction list">
-            {reactions.map((reaction) => (
-              <button
-                key={reaction.emoji}
-                type="button"
-                className={`reaction-pill${reaction.isMine ? ' is-selected' : ''}`}
-                onClick={() => toggleReaction(reaction.emoji)}
-                aria-pressed={reaction.isMine}
-                aria-label={`Reaction ${reaction.emoji}, ${reaction.count}`}
-                title={reaction.isMine ? 'Remove your reaction' : 'Add your reaction'}
-              >
-                <span className="reaction-pill-emoji" aria-hidden="true">
-                  {reaction.emoji}
-                </span>
-                <span className="reaction-pill-count" aria-hidden="true">
-                  {reaction.count}
-                </span>
-              </button>
-            ))}
+          <div className="reactions-row" aria-label="Reactions">
+            <div className="reactions-list" aria-label="Reaction list">
+              {reactions.map((reaction) => (
+                <button
+                  key={reaction.emoji}
+                  type="button"
+                  className={`reaction-pill${reaction.isMine ? ' is-selected' : ''}`}
+                  onClick={() => toggleReaction(reaction.emoji)}
+                  aria-pressed={reaction.isMine}
+                  aria-label={`Reaction ${reaction.emoji}, ${reaction.count}`}
+                  title={reaction.isMine ? 'Remove your reaction' : 'Add your reaction'}
+                >
+                  <span className="reaction-pill-emoji" aria-hidden="true">
+                    {reaction.emoji}
+                  </span>
+                  <span className="reaction-pill-count" aria-hidden="true">
+                    {reaction.count}
+                  </span>
+                </button>
+              ))}
 
-            <div className="reaction-add">
-              <button
-                type="button"
-                className="reaction-add-btn"
-                onClick={() => setIsPickerOpen((previous) => !previous)}
-                aria-expanded={isPickerOpen}
-                aria-label="Add reaction"
-                title="Add reaction"
-              >
-                +
-              </button>
+              <div className="reaction-add">
+                <button
+                  type="button"
+                  className="reaction-add-btn"
+                  onClick={() => setIsPickerOpen((previous) => !previous)}
+                  aria-expanded={isPickerOpen}
+                  aria-label="Add reaction"
+                  title="Add reaction"
+                >
+                  +
+                </button>
 
-              {isPickerOpen ? (
-                <div className="reaction-popover" role="dialog" aria-label="Add reaction">
-                  <div className="reaction-suggestions" aria-label="Suggested emojis">
-                    {suggestedEmojis.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        className="reaction-suggestion"
-                        onClick={() => toggleReaction(emoji)}
-                        aria-label={`React with ${emoji}`}
-                      >
-                        {emoji}
+                {isPickerOpen ? (
+                  <div className="reaction-popover" role="dialog" aria-label="Add reaction">
+                    <div className="reaction-suggestions" aria-label="Suggested emojis">
+                      {suggestedEmojis.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          className="reaction-suggestion"
+                          onClick={() => toggleReaction(emoji)}
+                          aria-label={`React with ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+
+                    <form
+                      className="reaction-form"
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        addFromPicker()
+                      }}
+                    >
+                      <input
+                        ref={pickerInputRef}
+                        className="reaction-input"
+                        value={pickerValue}
+                        onChange={(event) => setPickerValue(event.target.value)}
+                        placeholder="Paste an emoji"
+                        inputMode="text"
+                        aria-label="Emoji"
+                      />
+                      <button type="submit" className="reaction-submit">
+                        Add
                       </button>
-                    ))}
+                    </form>
                   </div>
-
-                  <form
-                    className="reaction-form"
-                    onSubmit={(event) => {
-                      event.preventDefault()
-                      addFromPicker()
-                    }}
-                  >
-                    <input
-                      ref={pickerInputRef}
-                      className="reaction-input"
-                      value={pickerValue}
-                      onChange={(event) => setPickerValue(event.target.value)}
-                      placeholder="Paste an emoji"
-                      inputMode="text"
-                      aria-label="Emoji"
-                    />
-                    <button type="submit" className="reaction-submit">
-                      Add
-                    </button>
-                  </form>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
+      ) : null}
 
-      <section className="panel event-card" aria-label="Next event">
-        <div className="event-head">
-          <div className="event-chip" aria-hidden="true">
-            <span className="event-month">{chipParts.month}</span>
-            <span className="event-day">{chipParts.day}</span>
+
+      {nextEvent ? (
+        <section className="panel event-card" aria-label="Next event">
+          <div className="event-head">
+            <div className="event-chip" aria-hidden="true">
+              <span className="event-month">{chipParts.month}</span>
+              <span className="event-day">{chipParts.day}</span>
+            </div>
+            <div className="event-meta">
+              <h2>Next tasting</h2>
+              <p className="event-when">{nextEvent?.dateLine ?? nextEvent?.when ?? 'Loading…'}</p>
+              <p className="event-where">{nextEvent?.location ?? nextEvent?.address ?? ''}</p>
+            </div>
           </div>
-          <div className="event-meta">
-            <h2>Next tasting</h2>
-            <p className="event-when">{nextEvent?.dateLine ?? nextEvent?.when ?? 'Loading…'}</p>
-            <p className="event-where">{nextEvent?.location ?? nextEvent?.address ?? ''}</p>
-          </div>
-        </div>
-        <div className="event-actions" aria-label="Event actions">
-          <div className={`event-rsvp-pop event-action-half${showRsvpOptions ? ' is-open' : ''}`}>
-            <button
-              type="button"
-              className="event-action"
-              onClick={() => setShowRsvpOptions((previous) => !previous)}
-              aria-expanded={showRsvpOptions}
-              aria-label={`RSVP status: ${rsvpButtonLabel}`}
+          <div className="event-actions" aria-label="Event actions">
+            <div className={`event-rsvp-pop event-action-half${showRsvpOptions ? ' is-open' : ''}`}>
+              <button
+                type="button"
+                className="event-action"
+                onClick={() => setShowRsvpOptions((previous) => !previous)}
+                aria-expanded={showRsvpOptions}
+                aria-label={`RSVP status: ${rsvpButtonLabel}`}
+              >
+                {rsvpButtonLabel}
+              </button>
+              <div className="event-rsvp-pop-menu" role="group" aria-label="Choose RSVP response">
+                <button
+                  type="button"
+                  className="event-action"
+                  onClick={() => {
+                    setRsvpStatus('accepted')
+                    if (nextEvent?.id) {
+                      putMyRsvp(String(nextEvent.id), { status: 'accepted' }).catch(() => {
+                        // TODO: Handle auth failures once auth exists.
+                      })
+                    }
+                    setShowRsvpOptions(false)
+                  }}
+                  aria-pressed={rsvpStatus === 'accepted'}
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  className="event-action"
+                  onClick={() => {
+                    setRsvpStatus('tentative')
+                    if (nextEvent?.id) {
+                      putMyRsvp(String(nextEvent.id), { status: 'tentative' }).catch(() => {
+                        // TODO: Handle auth failures once auth exists.
+                      })
+                    }
+                    setShowRsvpOptions(false)
+                  }}
+                  aria-pressed={rsvpStatus === 'tentative'}
+                >
+                  Tentative
+                </button>
+                <button
+                  type="button"
+                  className="event-action"
+                  onClick={() => {
+                    setRsvpStatus('declined')
+                    if (nextEvent?.id) {
+                      putMyRsvp(String(nextEvent.id), { status: 'declined' }).catch(() => {
+                        // TODO: Handle auth failures once auth exists.
+                      })
+                    }
+                    setShowRsvpOptions(false)
+                  }}
+                  aria-pressed={rsvpStatus === 'declined'}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+            <Link
+              className="event-action event-action-link event-action-half"
+              to={nextEvent?.id ? `/events/${String(nextEvent.id)}` : '/events'}
             >
-              {rsvpButtonLabel}
-            </button>
-            <div className="event-rsvp-pop-menu" role="group" aria-label="Choose RSVP response">
-              <button
-                type="button"
-                className="event-action"
-                onClick={() => {
-                  setRsvpStatus('accepted')
-                  if (nextEvent?.id) {
-                    putMyRsvp(String(nextEvent.id), { status: 'accepted' }).catch(() => {
-                      // TODO: Handle auth failures once auth exists.
-                    })
-                  }
-                  setShowRsvpOptions(false)
-                }}
-                aria-pressed={rsvpStatus === 'accepted'}
-              >
-                Accept
-              </button>
-              <button
-                type="button"
-                className="event-action"
-                onClick={() => {
-                  setRsvpStatus('tentative')
-                  if (nextEvent?.id) {
-                    putMyRsvp(String(nextEvent.id), { status: 'tentative' }).catch(() => {
-                      // TODO: Handle auth failures once auth exists.
-                    })
-                  }
-                  setShowRsvpOptions(false)
-                }}
-                aria-pressed={rsvpStatus === 'tentative'}
-              >
-                Tentative
-              </button>
-              <button
-                type="button"
-                className="event-action"
-                onClick={() => {
-                  setRsvpStatus('declined')
-                  if (nextEvent?.id) {
-                    putMyRsvp(String(nextEvent.id), { status: 'declined' }).catch(() => {
-                      // TODO: Handle auth failures once auth exists.
-                    })
-                  }
-                  setShowRsvpOptions(false)
-                }}
-                aria-pressed={rsvpStatus === 'declined'}
-              >
-                Decline
-              </button>
-            </div>
+              Details
+            </Link>
           </div>
-          <Link
-            className="event-action event-action-link event-action-half"
-            to={nextEvent?.id ? `/events/${String(nextEvent.id)}` : '/events'}
-          >
-            Details
-          </Link>
-        </div>
-      </section>
+        </section>
+      ) : null}
+
+      {showQuietState ? (
+        <section className="quiet-state" aria-label="Cellar status">
+          <p className="quiet-state-title">Quiet as a freshly-poured pinot.</p>
+          <p className="quiet-state-note">
+            No sommelier note and no tasting queued up. Check back later!
+          </p>
+        </section>
+      ) : null}
+
     </>
   )
 }
