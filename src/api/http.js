@@ -57,12 +57,30 @@ export function buildUrl(path, query) {
   return url.toString()
 }
 
-function getAccessToken() {
+export function getAccessToken() {
   const fromSession = sessionStorage.getItem('wineClubAccessToken')
   if (fromSession) return fromSession
   const fromLocal = localStorage.getItem('wineClubAccessToken')
   if (fromLocal) return fromLocal
   return null
+}
+
+export function setAccessToken(token, { persist = false } = {}) {
+  const value = typeof token === 'string' ? token.trim() : ''
+  if (!value) return
+
+  if (persist) {
+    localStorage.setItem('wineClubAccessToken', value)
+    sessionStorage.removeItem('wineClubAccessToken')
+    return
+  }
+
+  sessionStorage.setItem('wineClubAccessToken', value)
+}
+
+export function clearAccessToken() {
+  sessionStorage.removeItem('wineClubAccessToken')
+  localStorage.removeItem('wineClubAccessToken')
 }
 
 function buildAuthHeaders() {

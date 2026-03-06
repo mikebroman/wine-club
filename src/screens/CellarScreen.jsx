@@ -65,7 +65,7 @@ function matchesSearch(bottle, query) {
   return haystack.includes(normalizedQuery)
 }
 
-export default function CellarScreen() {
+export default function CellarScreen({ clubScopeKey } = {}) {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [bottles, setBottles] = useState([])
@@ -74,7 +74,7 @@ export default function CellarScreen() {
 
   useEffect(() => {
     document.title = 'Bottles | Wine Club'
-  }, [])
+  }, [clubScopeKey])
 
   useEffect(() => {
     let cancelled = false
@@ -110,6 +110,8 @@ export default function CellarScreen() {
   }, [bottles, filteredBottles])
 
   const usingSearch = searchQuery.trim().length > 0
+  const hasAnyBottles = bottles.length > 0
+  const isTrulyEmpty = !loading && !loadError && !hasAnyBottles
 
   return (
     <div className="cellar-layout">
@@ -138,38 +140,40 @@ export default function CellarScreen() {
         </div>
       </section>
 
-      <section className="bottle-section" aria-label="Hall of Fame">
-        <div className="bottle-section-head">
-          <h2>Hall of Fame</h2>
-        </div>
+      {!loading && !loadError && hallOfFameBottles.length ? (
+        <section className="bottle-section" aria-label="Hall of Fame">
+          <div className="bottle-section-head">
+            <h2>Hall of Fame</h2>
+          </div>
 
-        <div className="hall-carousel">
-          {hallOfFameBottles.map((bottle) => (
-            <Link
-              key={bottle.id}
-              to={`/cellar/${bottle.id}`}
-              className="hall-card"
-              aria-label={`Open ${bottle.producer} ${bottle.name}`}
-            >
-              {bottle.image ? (
-                <img className="hall-card-image" src={bottle.image} alt={`${bottle.producer} ${bottle.name}`} />
-              ) : (
-                <div className="hall-card-image is-placeholder" aria-hidden="true">
-                  <div className="bottle-photo-placeholder">
-                    <FontAwesomeIcon icon={faWineGlassEmpty} />
-                    <span>No photo yet</span>
+          <div className="hall-carousel">
+            {hallOfFameBottles.map((bottle) => (
+              <Link
+                key={bottle.id}
+                to={`/cellar/${bottle.id}`}
+                className="hall-card"
+                aria-label={`Open ${bottle.producer} ${bottle.name}`}
+              >
+                {bottle.image ? (
+                  <img className="hall-card-image" src={bottle.image} alt={`${bottle.producer} ${bottle.name}`} />
+                ) : (
+                  <div className="hall-card-image is-placeholder" aria-hidden="true">
+                    <div className="bottle-photo-placeholder">
+                      <FontAwesomeIcon icon={faWineGlassEmpty} />
+                      <span>No photo yet</span>
+                    </div>
                   </div>
+                )}
+                <div className="hall-card-body">
+                  <p className="hall-card-name">{bottle.name}</p>
+                  <p className="hall-card-meta">{bottle.eventDate} • {bottle.broughtBy}</p>
+                  <p className="hall-card-rating">❤️ {lovesCount(bottle)} · {averageRating(bottle).toFixed(1)}</p>
                 </div>
-              )}
-              <div className="hall-card-body">
-                <p className="hall-card-name">{bottle.name}</p>
-                <p className="hall-card-meta">{bottle.eventDate} • {bottle.broughtBy}</p>
-                <p className="hall-card-rating">❤️ {lovesCount(bottle)} · {averageRating(bottle).toFixed(1)}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="bottle-section" aria-label="Recent bottles">
         <div className="bottle-section-head">
@@ -179,15 +183,15 @@ export default function CellarScreen() {
 
         {loading ? (
           <div className="panel bottle-empty" aria-label="Loading bottles">
-            <h3>Loading…</h3>
-            <p />
+            <h3>Loading bottles…</h3>
+            <p>Fetching the cellar list.</p>
           </div>
         ) : null}
 
         {!loading && loadError ? (
           <div className="panel bottle-empty" aria-label="Failed to load bottles">
             <h3>Unable to load bottles.</h3>
-            <p />
+            <p>Please try again in a moment.</p>
           </div>
         ) : null}
 
@@ -243,9 +247,16 @@ export default function CellarScreen() {
           </div>
         ) : null)}
 
-        {!loading && !loadError && !filteredBottles.length ? (
+        {isTrulyEmpty ? (
+          <div className="panel bottle-empty" aria-label="No bottles yet">
+            <h3>No bottles yet.</h3>
+            <p>Once tastings are logged, they’ll appear here.</p>
+          </div>
+        ) : null}
+
+        {!loading && !loadError && hasAnyBottles && !filteredBottles.length ? (
           <div className="panel bottle-empty" aria-label="No matching bottles">
-            <h3>No bottles match that search yet.</h3>
+            <h3>No bottles match that search.</h3>
             <p>Try a broader search term or switch filter chips.</p>
           </div>
         ) : null}

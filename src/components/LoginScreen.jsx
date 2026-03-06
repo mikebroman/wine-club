@@ -207,7 +207,9 @@ export default function LoginScreen({ onSignedIn }) {
           size: 'large',
           text: 'continue_with',
           shape: 'pill',
-          width: Math.min(320, availableWidth),
+          // GIS expects roughly 200-400px; on narrow viewports a smaller value
+          // can prevent the button from rendering at all.
+          width: Math.max(200, Math.min(320, availableWidth)),
         })
 
         if (googleErrorRef.current) {

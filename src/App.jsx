@@ -4,7 +4,6 @@ import {
   faCalendarDays,
   faHouse,
   faWineBottle,
-  faQuestion,
 } from '@fortawesome/free-solid-svg-icons'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import './App.scss'
@@ -18,31 +17,22 @@ import EventsScreen from './screens/EventsScreen'
 import EventDetailsScreen from './screens/EventDetailsScreen'
 import HomeScreen from './screens/HomeScreen'
 import ProfileScreen from './screens/ProfileScreen'
-import { getMe, postGoogleAuth } from './api/wineClubApi'
-
-function setAccessToken(token) {
-  if (!token) return
-  sessionStorage.setItem('wineClubAccessToken', token)
-}
-
-function clearAccessToken() {
-  sessionStorage.removeItem('wineClubAccessToken')
-  localStorage.removeItem('wineClubAccessToken')
-}
+import { useAuth } from './auth/AuthContext'
+import { useMeProfile } from './profile/MeProfileContext'
 
 const tabs = [
   { to: '/home', label: 'Home', icon: faHouse },
   { to: '/cellar', label: 'Bottles', icon: faWineBottle },
   { to: '/events', label: 'Events', icon: faCalendarDays },
-  { to: '/tbd', label: 'TBD', icon: faQuestion },
 ]
 
 function App() {
   const navigate = useNavigate()
+  const { token, user, isReady: authReady, signInWithGoogle, logout } = useAuth()
+  const { status: profileStatus, clubScopeKey } = useMeProfile()
   const [loadingPhase, setLoadingPhase] = useState('enter')
   const [logoutPhase, setLogoutPhase] = useState('idle')
-  const [user, setUser] = useState(null)
-  const [meLoading, setMeLoading] = useState(true)
+  const meLoading = !authReady || (token && profileStatus === 'loading')
 
   useEffect(() => {
     const exitTimer = setTimeout(() => {
@@ -58,54 +48,11 @@ function App() {
     }
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-
-    getMe()
-      .then((payload) => {
-        if (cancelled) return
-        setUser(payload && typeof payload === 'object' ? payload : null)
-      })
-      .catch(() => {
-        if (cancelled) return
-        setUser(null)
-      })
-      .finally(() => {
-        if (cancelled) return
-        setMeLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const handleSignedIn = async (credential) => {
-    const googleCredential = typeof credential === 'string' ? credential.trim() : ''
-    if (!googleCredential) {
-      return
-    }
-
-    setMeLoading(true)
-
     try {
-      const exchange = await postGoogleAuth({ credential: googleCredential })
-      const accessToken = exchange && typeof exchange === 'object' ? String(exchange.accessToken ?? '').trim() : ''
-
-      if (!accessToken) {
-        clearAccessToken()
-        setUser(null)
-        return
-      }
-
-      setAccessToken(accessToken)
-      const payload = await getMe()
-      setUser(payload && typeof payload === 'object' ? payload : null)
+      await signInWithGoogle(credential)
     } catch {
-      clearAccessToken()
-      setUser(null)
-    } finally {
-      setMeLoading(false)
+      // apiClient will handle unauthorized; login UI will remain visible.
     }
   }
 
@@ -114,7 +61,7 @@ function App() {
       return
     }
 
-    clearAccessToken()
+    logout()
     setLogoutPhase('fading')
   }
 
@@ -156,7 +103,7 @@ function App() {
     return <LoadingScreen />
   }
 
-  if (!user) {
+  if (!token) {
     return <LoginScreen onSignedIn={handleSignedIn} />
   }
 
@@ -167,11 +114,11 @@ function App() {
       <main className="app-shell">
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/home" element={<HomeScreen />} />
-          <Route path="/cellar" element={<CellarScreen />} />
-          <Route path="/cellar/:bottleId" element={<BottleDetailsScreen />} />
-          <Route path="/events" element={<EventsScreen />} />
-          <Route path="/events/:eventId" element={<EventDetailsScreen />} />
+          <Route path="/home" element={<HomeScreen clubScopeKey={clubScopeKey} />} />
+          <Route path="/cellar" element={<CellarScreen clubScopeKey={clubScopeKey} />} />
+          <Route path="/cellar/:bottleId" element={<BottleDetailsScreen clubScopeKey={clubScopeKey} />} />
+          <Route path="/events" element={<EventsScreen clubScopeKey={clubScopeKey} />} />
+          <Route path="/events/:eventId" element={<EventDetailsScreen clubScopeKey={clubScopeKey} />} />
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />
         </Routes>
       </main>

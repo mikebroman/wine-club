@@ -10,12 +10,12 @@ function normalizeEventDetails(payload, fallback) {
   const assignmentList = Array.isArray(source.assignments)
     ? source.assignments
     : (assignments && typeof assignments === 'object')
-        ? [
-            { label: 'Host', value: assignments.host ?? source.host ?? '' },
-            { label: 'Apps', value: assignments.apps ?? '' },
-            { label: 'Dessert', value: assignments.dessert ?? '' },
-          ].filter((item) => item.value)
-        : fallback.assignments
+      ? [
+        { label: 'Host', value: assignments.host ?? source.host ?? '' },
+        { label: 'Apps', value: assignments.apps ?? '' },
+        { label: 'Dessert', value: assignments.dessert ?? '' },
+      ].filter((item) => item.value)
+      : fallback.assignments
 
   return {
     ...fallback,
@@ -31,9 +31,10 @@ function normalizeEventDetails(payload, fallback) {
   }
 }
 
-export default function EventDetailsScreen() {
+export default function EventDetailsScreen({ clubScopeKey } = {}) {
   const { eventId } = useParams()
   const [event, setEvent] = useState(null)
+  const [eventStatus, setEventStatus] = useState('loading')
   const [rsvpStatus, setRsvpStatus] = useState('none')
   const [showRsvpOptions, setShowRsvpOptions] = useState(false)
   const rsvpLabelByStatus = {
@@ -44,7 +45,9 @@ export default function EventDetailsScreen() {
   }
   const rsvpButtonLabel = rsvpLabelByStatus[rsvpStatus] ?? 'RSVP'
   const directionsQuery = event?.address ?? event?.location
-  const directionsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(directionsQuery)}`
+  const directionsUrl = directionsQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(directionsQuery)}`
+    : null
 
   useEffect(() => {
     if (!event?.title) {
@@ -58,20 +61,9 @@ export default function EventDetailsScreen() {
   useEffect(() => {
     let cancelled = false
 
-    queueMicrotask(() => {
-      if (cancelled) return
-      setEvent({
-        id: String(eventId ?? ''),
-        title: 'Loading…',
-        dateLine: '',
-        location: '',
-        address: '',
-        theme: '',
-        notes: '',
-        assignments: [],
-      })
-      setRsvpStatus('none')
-    })
+    setEventStatus('loading')
+    setEvent(null)
+    setRsvpStatus('none')
 
     if (!eventId) {
       return () => {
@@ -82,131 +74,174 @@ export default function EventDetailsScreen() {
     getEvent(eventId)
       .then((payload) => {
         if (cancelled) return
-        setEvent((previous) => normalizeEventDetails(payload, previous ?? {}))
+        const normalized = normalizeEventDetails(payload, {})
+        setEvent(normalized?.id ? normalized : null)
+        setEventStatus('loaded')
 
         // TODO: Map backend's "my RSVP" field into UI state.
         const status = payload?.myRsvpStatus ?? payload?.event?.myRsvpStatus
         if (typeof status === 'string') setRsvpStatus(status)
       })
       .catch(() => {
-        // TODO: Show a proper error state once designs are defined.
+        if (cancelled) return
+        setEvent(null)
+        setEventStatus('error')
       })
 
     return () => {
       cancelled = true
     }
-  }, [eventId])
+  }, [eventId, clubScopeKey])
 
   const assignments = Array.isArray(event?.assignments) ? event.assignments : []
+  const hasAssignments = assignments.length > 0
+  const hasNotes = Boolean(String(event?.notes ?? '').trim())
+  const hasTheme = Boolean(String(event?.theme ?? '').trim())
 
   return (
     <section className="panel event-details" aria-label="Event details">
-      <div className="event-details-head">
-        <p className="event-details-kicker">Event details</p>
-        <h1 className="event-details-title">{event?.title ?? 'Loading…'}</h1>
-        <p className="event-details-date">{event?.dateLine ?? ''}</p>
-        <p className="event-details-location">{event?.location ?? ''}</p>
-      </div>
-
-    {event?.theme ? (
-        <div className="event-details-block" aria-label="Theme">
-            <h2>Theme</h2>
-        <p>{event.theme}</p>
+      {eventStatus === 'loading' ? (
+        <div className="empty-panel" aria-label="Loading event">
+          <h3>Loading event…</h3>
+          <p>Fetching tasting details.</p>
         </div>
-    ) : null}
-      
+      ) : null}
 
-      <div className="event-details-block" aria-label="Assignments">
-        <h2>Assignments</h2>
-        <div className="event-details-assignments">
-          {assignments.map((assignment) => (
-            <div className="event-details-assignment" key={assignment.label}>
-              <span className="event-details-label">{assignment.label}</span>
-              <span className="event-details-value">{assignment.value}</span>
-            </div>
-          ))}
+      {eventStatus === 'error' ? (
+        <div className="empty-panel" aria-label="Unable to load event">
+          <h3>Unable to load event.</h3>
+          <p>Please try again in a moment.</p>
         </div>
-      </div>
+      ) : null}
 
-      <div className="event-details-block" aria-label="Notes">
-        <h2>Note</h2>
-        <p>{event?.notes ?? ''}</p>
-      </div>
+      {eventStatus === 'loaded' && !event ? (
+        <div className="empty-panel" aria-label="Event not found">
+          <h3>Event not found.</h3>
+          <p>It may have been removed or the link is incorrect.</p>
+        </div>
+      ) : null}
 
-      <div className="event-details-actions" aria-label="Event detail actions">
-        <div className={`event-rsvp-pop event-action-half${showRsvpOptions ? ' is-open' : ''}`}>
-          <button
-            type="button"
-            className="event-action"
-            onClick={() => setShowRsvpOptions((previous) => !previous)}
-            aria-expanded={showRsvpOptions}
-            aria-label={`RSVP status: ${rsvpButtonLabel}`}
-          >
-            {rsvpButtonLabel}
-          </button>
-          <div className="event-rsvp-pop-menu" role="group" aria-label="Choose RSVP response">
-            <button
-              type="button"
-              className="event-action"
-              onClick={() => {
-                setRsvpStatus('accepted')
-                if (event?.id) {
-                  putMyRsvp(event.id, { status: 'accepted' }).catch(() => {
-                    // TODO: Handle auth failures once auth exists.
-                  })
-                }
-                setShowRsvpOptions(false)
-              }}
-              aria-pressed={rsvpStatus === 'accepted'}
-            >
-              Accept
-            </button>
-            <button
-              type="button"
-              className="event-action"
-              onClick={() => {
-                setRsvpStatus('tentative')
-                if (event?.id) {
-                  putMyRsvp(event.id, { status: 'tentative' }).catch(() => {
-                    // TODO: Handle auth failures once auth exists.
-                  })
-                }
-                setShowRsvpOptions(false)
-              }}
-              aria-pressed={rsvpStatus === 'tentative'}
-            >
-              Tentative
-            </button>
-            <button
-              type="button"
-              className="event-action"
-              onClick={() => {
-                setRsvpStatus('declined')
-                if (event?.id) {
-                  putMyRsvp(event.id, { status: 'declined' }).catch(() => {
-                    // TODO: Handle auth failures once auth exists.
-                  })
-                }
-                setShowRsvpOptions(false)
-              }}
-              aria-pressed={rsvpStatus === 'declined'}
-            >
-              Decline
-            </button>
+      {eventStatus === 'loaded' && event ? (
+        <>
+          <div className="event-details-head">
+            <p className="event-details-kicker">Event details</p>
+            <h1 className="event-details-title">{event.title}</h1>
+            {event.dateLine ? <p className="event-details-date">{event.dateLine}</p> : null}
+            {event.location ? <p className="event-details-location">{event.location}</p> : null}
           </div>
+
+          {hasTheme ? (
+            <div className="event-details-block" aria-label="Theme">
+              <h2>Theme</h2>
+              <p>{event.theme}</p>
+            </div>
+          ) : null}
+
+          <div className="event-details-block" aria-label="Assignments">
+            <h2>Assignments</h2>
+            {hasAssignments ? (
+              <div className="event-details-assignments">
+                {assignments.map((assignment) => (
+                  <div className="event-details-assignment" key={assignment.label}>
+                    <span className="event-details-label">{assignment.label}</span>
+                    <span className="event-details-value">{assignment.value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>Assignments haven’t been posted yet.</p>
+            )}
+          </div>
+
+          <div className="event-details-block" aria-label="Notes">
+            <h2>Note</h2>
+            {hasNotes ? <p>{event.notes}</p> : <p>No note posted yet.</p>}
+          </div>
+
+          <div className="event-details-actions" aria-label="Event detail actions">
+            <div className={`event-rsvp-pop event-action-half${showRsvpOptions ? ' is-open' : ''}`}>
+              <button
+                type="button"
+                className="event-action"
+                onClick={() => setShowRsvpOptions((previous) => !previous)}
+                aria-expanded={showRsvpOptions}
+                aria-label={`RSVP status: ${rsvpButtonLabel}`}
+              >
+                {rsvpButtonLabel}
+              </button>
+              <div className="event-rsvp-pop-menu" role="group" aria-label="Choose RSVP response">
+                <button
+                  type="button"
+                  className="event-action"
+                  onClick={() => {
+                    setRsvpStatus('accepted')
+                    if (event.id) {
+                      putMyRsvp(event.id, { status: 'accepted' }).catch(() => {
+                        // TODO: Handle auth failures once auth exists.
+                      })
+                    }
+                    setShowRsvpOptions(false)
+                  }}
+                  aria-pressed={rsvpStatus === 'accepted'}
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  className="event-action"
+                  onClick={() => {
+                    setRsvpStatus('tentative')
+                    if (event.id) {
+                      putMyRsvp(event.id, { status: 'tentative' }).catch(() => {
+                        // TODO: Handle auth failures once auth exists.
+                      })
+                    }
+                    setShowRsvpOptions(false)
+                  }}
+                  aria-pressed={rsvpStatus === 'tentative'}
+                >
+                  Tentative
+                </button>
+                <button
+                  type="button"
+                  className="event-action"
+                  onClick={() => {
+                    setRsvpStatus('declined')
+                    if (event.id) {
+                      putMyRsvp(event.id, { status: 'declined' }).catch(() => {
+                        // TODO: Handle auth failures once auth exists.
+                      })
+                    }
+                    setShowRsvpOptions(false)
+                  }}
+                  aria-pressed={rsvpStatus === 'declined'}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+            {directionsUrl ? (
+              <a
+                className="event-action event-action-link event-action-half"
+                href={directionsUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Directions
+              </a>
+            ) : null}
+            <Link className="event-action event-action-link event-action-back" to="/events">
+              Back to Events
+            </Link>
+          </div>
+        </>
+      ) : (
+        <div className="event-details-actions" aria-label="Event detail actions">
+          <Link className="event-action event-action-link event-action-back" to="/events">
+            Back to Events
+          </Link>
         </div>
-        <a
-          className="event-action event-action-link event-action-half"
-          href={directionsUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Directions
-        </a>
-        <Link className="event-action event-action-link event-action-back" to="/events">
-          Back to Events
-        </Link>
-      </div>
+      )}
     </section>
   )
 }

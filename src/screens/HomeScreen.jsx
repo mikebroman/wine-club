@@ -47,7 +47,7 @@ function buildCounts({ myEmojis, otherByUserId }) {
   return reactions
 }
 
-export default function HomeScreen() {
+export default function HomeScreen({ clubScopeKey } = {}) {
   const [announcement, setAnnouncement] = useState(null)
   const [nextEvent, setNextEvent] = useState(null)
   const [hasCheckedAnnouncement, setHasCheckedAnnouncement] = useState(false)
@@ -68,7 +68,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     document.title = 'Home | Wine Club'
-  }, [])
+  }, [clubScopeKey])
 
   useEffect(() => {
     let cancelled = false
@@ -195,10 +195,10 @@ export default function HomeScreen() {
   const chipParts = useMemo(() => {
     // TODO: Standardize event date shape (string vs ISO) once backend contract is known.
     const raw = nextEvent?.date ?? nextEvent?.startsAt ?? nextEvent?.when
-    if (!raw) return { month: '—', day: '—' }
+    if (!raw) return null
 
     const date = new Date(raw)
-    if (Number.isNaN(date.getTime())) return { month: '—', day: '—' }
+    if (Number.isNaN(date.getTime())) return null
     return {
       month: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
       day: String(date.getDate()),
@@ -299,14 +299,20 @@ export default function HomeScreen() {
       {nextEvent ? (
         <section className="panel event-card" aria-label="Next event">
           <div className="event-head">
-            <div className="event-chip" aria-hidden="true">
-              <span className="event-month">{chipParts.month}</span>
-              <span className="event-day">{chipParts.day}</span>
-            </div>
+            {chipParts ? (
+              <div className="event-chip" aria-hidden="true">
+                <span className="event-month">{chipParts.month}</span>
+                <span className="event-day">{chipParts.day}</span>
+              </div>
+            ) : null}
             <div className="event-meta">
               <h2>Next tasting</h2>
-              <p className="event-when">{nextEvent?.dateLine ?? nextEvent?.when ?? 'Loading…'}</p>
-              <p className="event-where">{nextEvent?.location ?? nextEvent?.address ?? ''}</p>
+              {nextEvent?.dateLine || nextEvent?.when ? (
+                <p className="event-when">{nextEvent?.dateLine ?? nextEvent?.when}</p>
+              ) : null}
+              {nextEvent?.location || nextEvent?.address ? (
+                <p className="event-where">{nextEvent?.location ?? nextEvent?.address}</p>
+              ) : null}
             </div>
           </div>
           <div className="event-actions" aria-label="Event actions">

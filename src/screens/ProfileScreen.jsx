@@ -1,75 +1,37 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faRightFromBracket } from '@fortawesome/free-solid-svg-icons'
-import { useEffect, useMemo, useState } from 'react'
-import { getMe, getMyProfile } from '../api/wineClubApi'
+import { useEffect, useMemo } from 'react'
+import { useAuth } from '../auth/AuthContext'
+import { useMeProfile } from '../profile/MeProfileContext'
 
 export default function ProfileScreen({ onLogout }) {
-  const [me, setMe] = useState(null)
-  const [profile, setProfile] = useState(null)
+  const { user } = useAuth()
+  const { profile, status } = useMeProfile()
 
   useEffect(() => {
     document.title = 'Profile | Wine Club'
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-
-    getMe()
-      .then((payload) => {
-        if (cancelled) return
-        if (payload && typeof payload === 'object') setMe(payload)
-      })
-      .catch(() => {
-        // Ignore until auth is implemented.
-      })
-
-    getMyProfile()
-      .then((payload) => {
-        if (cancelled) return
-        if (payload && typeof payload === 'object') setProfile(payload)
-      })
-      .catch(() => {
-        // Ignore until auth is implemented.
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const householdName = useMemo(() => {
-    return profile?.householdName ?? profile?.name ?? me?.name ?? '—'
-  }, [me?.name, profile?.householdName, profile?.name])
+    const membership = Array.isArray(profile?.householdMemberships) ? profile.householdMemberships[0] : null
+    return membership?.householdName ?? ''
+  }, [profile?.householdMemberships])
 
-  const membersLabel = useMemo(() => {
-    const members = profile?.members ?? profile?.householdMembers
-    if (Array.isArray(members) && members.length) {
-      return members.map((m) => (typeof m === 'string' ? m : (m?.name ?? ''))).filter(Boolean).join(', ')
-    }
+  const memberships = useMemo(() => {
+    const list = profile?.householdMemberships
+    return Array.isArray(list) ? list : []
+  }, [profile?.householdMemberships])
 
-    return profile?.membersLabel ?? '—'
-  }, [profile?.householdMembers, profile?.members, profile?.membersLabel])
+  const activeClubName = useMemo(() => {
+    const activeId = Number(profile?.activeClubId)
+    if (!Number.isFinite(activeId)) return ''
+    const clubs = Array.isArray(profile?.clubs) ? profile.clubs : []
+    const match = clubs.find((c) => Number(c?.clubId) === activeId)
+    return String(match?.clubName ?? '').trim()
+  }, [profile?.activeClubId, profile?.clubs])
 
-  const rolesLabel = useMemo(() => {
-    const roles = profile?.rotationRoles ?? profile?.roles
-    if (Array.isArray(roles) && roles.length) return roles.join(' · ')
-    return profile?.rolesLabel ?? '—'
-  }, [profile?.roles, profile?.rolesLabel, profile?.rotationRoles])
-
-  const tasteLeanings = useMemo(() => {
-    // TODO: Define taste tendency fields in /api/v1/me/profile response.
-    return profile?.taste?.leanings ?? profile?.tasteLeanings ?? '—'
-  }, [profile?.taste?.leanings, profile?.tasteLeanings])
-
-  const redsVsWhites = useMemo(() => {
-    // TODO: Define taste tendency fields in /api/v1/me/profile response.
-    return profile?.taste?.redsVsWhites ?? profile?.redsVsWhites ?? '—'
-  }, [profile?.redsVsWhites, profile?.taste?.redsVsWhites])
-
-  const averageRatingLabel = useMemo(() => {
-    // TODO: Define taste tendency fields in /api/v1/me/profile response.
-    return profile?.taste?.averageRatingLabel ?? profile?.averageRatingLabel ?? '—'
-  }, [profile?.averageRatingLabel, profile?.taste?.averageRatingLabel])
+  const isLoading = status === 'loading' || status === 'idle'
+  const hasProfile = Boolean(profile)
 
   return (
     <>
@@ -85,41 +47,48 @@ export default function ProfileScreen({ onLogout }) {
             <FontAwesomeIcon icon={faRightFromBracket} />
           </button>
         </div>
-        <ul className="wine-list">
-          <li>
-            <span>Name</span>
-            <span>{householdName}</span>
-          </li>
-          <li>
-            <span>Members</span>
-            <span>{membersLabel}</span>
-          </li>
-          <li>
-            <span>Rotation Roles</span>
-            <span>{rolesLabel}</span>
-          </li>
-        </ul>
-      </section>
 
-      <section className="panel" aria-label="Taste tendencies">
-        <h2>Taste Tendencies</h2>
-        <p>Derived from ratings, no manual setup.</p>
-        <ul className="wine-list">
-          <li>
-            <span>Leanings</span>
-            <span>{tasteLeanings}</span>
-          </li>
-          <li>
-            <span>Reds vs Whites</span>
-            <span>{redsVsWhites}</span>
-          </li>
-          <li>
-            <span>Average Rating</span>
-            <span>{averageRatingLabel}</span>
-          </li>
-        </ul>
-
-        {/* TODO: Add additional profile-derived stats when backend provides them. */}
+        {isLoading ? (
+          <div className="empty-panel" aria-label="Loading profile">
+            <h3>Loading profile…</h3>
+            <p>Fetching your household details.</p>
+          </div>
+        ) : !hasProfile ? (
+          <div className="empty-panel" aria-label="Profile unavailable">
+            <h3>Profile unavailable.</h3>
+            <p>If you just signed in, try again in a moment.</p>
+          </div>
+        ) : memberships.length ? (
+          <ul className="wine-list">
+            {String(householdName).trim() ? (
+              <li>
+                <span>Name</span>
+                <span>{householdName}</span>
+              </li>
+            ) : null}
+            {activeClubName ? (
+              <li>
+                <span>Club</span>
+                <span>{activeClubName}</span>
+              </li>
+            ) : null}
+            <li>
+              <span>Active Club Id</span>
+              <span>{profile?.activeClubId}</span>
+            </li>
+            {user?.email ? (
+              <li>
+                <span>Email</span>
+                <span>{user.email}</span>
+              </li>
+            ) : null}
+          </ul>
+        ) : (
+          <div className="empty-panel" aria-label="No household details">
+            <h3>No household details yet.</h3>
+            <p>Once your profile is set up, it’ll appear here.</p>
+          </div>
+        )}
       </section>
     </>
   )
